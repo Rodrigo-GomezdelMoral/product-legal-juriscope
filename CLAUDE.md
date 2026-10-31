@@ -46,8 +46,8 @@ phase closes and how each will be demonstrated (a test and, from phase 7, a live
 
   The counts come from `make budget`.
 - **Identity is the author's.** App registrations, role assignments, federated credentials, GitHub secrets and variables go in
-  `../_scripts/product-legal-juriscope/<nn>-<what>.sh`; write the script and stop. Planned: `03-eval-variables.sh` (phase 3),
-  `07-staging.sh` (phase 7), `08-production.sh` (phase 8).
+  `../_scripts/product-legal-juriscope/<nn>-<what>.sh`; write the script and stop. Written: `01-codeql.sh` (phase 1). Planned:
+  `03-eval-variables.sh` (phase 3), `07-staging.sh` (phase 7), `08-production.sh` (phase 8).
 - **Azure only in phases 7 and 8.** Until then: local, the Cosmos DB emulator, Bicep `what-if`, and the shared model deployments and
   `jur-articles-local` index with the author's own identity. Before creating anything that bills by the hour, state its price and how
   it is switched off. Staging ends every deploying phase at zero replicas.
@@ -90,7 +90,8 @@ phase closes and how each will be demonstrated (a test and, from phase 7, a live
 - **GitHub:** public repository with the expected metadata; ruleset `protect-main` active; environments `staging` (branch `main`)
   and `production` (the author as reviewer, tags `v*`); Dependabot alerts and security updates, secret scanning and push protection
   on; Pages by workflow; repository secrets `AZURE_CLIENT_ID`, `AZURE_TENANT_ID`, `AZURE_SUBSCRIPTION_ID`, `ALERT_EMAIL_ADDRESS`;
-  `AZURE_CLIENT_ID` in both environments; no variables yet. CodeQL default setup is off until `main` has code: phase 1 checks it.
+  `AZURE_CLIENT_ID` in both environments; no variables yet. CodeQL default setup: phase 1 found it `not-configured` (languages
+  detected: `actions`, `python`) and wrote `01-codeql.sh`; phase 5 checks that `javascript-typescript` joins once `web/` exists.
 - **Azure, per environment:** resource groups in `swedencentral` with the `project`, `environment` and `owner` tags; runtime
   identities `id-juriscope-stg-swc` and `id-juriscope-prod-swc` with `AcrPull` and `Foundry User`; CI apps
   `gh-product-legal-juriscope-staging` and `-production`, no secrets or certificates, with their federated credentials and the roles
@@ -123,6 +124,34 @@ phase closes and how each will be demonstrated (a test and, from phase 7, a live
   `bicep build` and `lint`.
 - **Built-in role definition ids** are the same in every tenant, but they match the GUID check. When the Bicep needs them (phase 6),
   add them to an explicit allowlist in `tests/test_budget.py`, never a blanket exception.
+
+## Decisions taken in phase 1
+
+- **The version store** (`data/boe/`) is built by `ops/boe.py` and documented in `data/README.md`: which blocks are kept, every
+  change from the source, the counts and their explanation. The repeal date is the in-force date of the repealing law, not the
+  BOE's `fecha_caducidad` (its publication date). `app/models.py` holds only the domain models so far; phases 2 and 4 add theirs.
+- **`app/corpus.py` is the domain, all code, no model:** `version_at`, `cite` (applicable version, the current one beside it when it
+  differs, the repeal date, "See also"), `references` and `locate`.
+  - References: "artículo(s) N", lists and ranges in this Code, among the articles in force on the date asked. "Artículo anterior"
+    and "siguiente" resolve among the articles in force when that wording came into force, so article 67 (1996) points to 66, not
+    to the later 66 bis. Mentions followed by another law ("de la Ley …") are excluded, and a number lower than an earlier one in
+    the same list is a subsection ("178.2 y 3"). Known limits: "artículos anteriores" is not resolved, and two dispositions name
+    other laws' articles without that suffix (the repealing disposition, about the 1973 Code, and final disposition one, quoting
+    the Ley de Enjuiciamiento Criminal), so their "See also" is wrong.
+  - `locate` maps a chunk to articles through 12-word windows, one of them anchored at the chunk's end, that occur exactly once in
+    the current text of the Code, so headings, page furniture and notes never decide. On the pypdf text of the consolidated PDF in
+    2,000-character chunks with 500 overlap, 492 of 492 chunks of the provisions map (401 to more than one article). The 26 chunks
+    of the PDF's index and preamble map to none, which would make the phase 7 rate 95 % over every chunk: **phase 6's
+    `ops/corpus.py` leaves the index and preamble out of the parts it uploads.** About 7 ms per chunk.
+  - An independent review (subagent) found the "artículo anterior" bug above, the unchecked chunk tail and three untested rules;
+    all are fixed, and each new test was shown to fail against the old code.
+- **The BOE open-data API answered 500 on every route** on the evening of 2026-10-30. The store was built with `build()` from the
+  API's own responses fetched at 14:47 GMT that day; rerun `python -m ops.boe` when the API answers and compare `sha256`.
+- **Reuse formula for phase 5:** the conditions give *Fuente de los datos: Agencia Estatal Boletín Oficial del Estado* for verbatim
+  copies (the article cards) and *Basado en datos de la Agencia Estatal Boletín Oficial del Estado* for extracted or combined data
+  (an answer). The answer footer should use the second.
+- **Tooling:** `types-defusedxml` pinned for `mypy --strict`. `make` is not installed on the author's Windows host; sessions run the
+  `Makefile` targets' commands with `.venv/Scripts` on the `PATH`. CI runs `make check` as written.
 
 ## Verified names (installed wheels, 2026-10-30)
 
