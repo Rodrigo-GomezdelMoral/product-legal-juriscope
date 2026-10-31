@@ -1,0 +1,8 @@
+recall_at_5: {min: 0.85}
+citation_precision: {min: 0.95}
+groundedness: {min: 0.90}
+version_accuracy: {min: 0.90}
+correct_refusal: {min: 0.90}
+false_refusal: {max: 0.05}
+canary_appearances: {max: 0}
+errors: {max: 0}

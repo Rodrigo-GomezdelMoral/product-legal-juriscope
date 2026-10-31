@@ -6,16 +6,17 @@ from agent_framework.foundry import FoundryChatClient
 from azure.core.credentials_async import AsyncTokenCredential
 from pydantic import BaseModel
 
-from app.config import Settings
+from app.config import SharedBase
 from app.models import ArticleVersion, Citation, Draft, LegalQuery
 
 PROMPTS = Path(__file__).resolve().parent / "prompts"
-ANALYST = (PROMPTS / "analyst_v1.md").read_text(encoding="utf-8")
-COUNSEL = (PROMPTS / "counsel_v1.md").read_text(encoding="utf-8")
+ANALYST = (PROMPTS / "analyst_v2.md").read_text(encoding="utf-8")
+COUNSEL = (PROMPTS / "counsel_v2.md").read_text(encoding="utf-8")
 TIMEOUT_SECONDS = 60
+EFFORT = "low"
 
 
-def chat_client(settings: Settings, credential: AsyncTokenCredential) -> FoundryChatClient:
+def chat_client(settings: SharedBase, credential: AsyncTokenCredential) -> FoundryChatClient:
     client = FoundryChatClient(
         project_endpoint=settings.foundry_project_endpoint, model=settings.chat_model, credential=credential
     )
@@ -26,7 +27,7 @@ def chat_client(settings: Settings, credential: AsyncTokenCredential) -> Foundry
 def options(response_format: type[BaseModel], max_tokens: int) -> dict[str, Any]:
     return {
         "response_format": response_format,
-        "reasoning": {"effort": "low"},
+        "reasoning": {"effort": EFFORT},
         "max_tokens": max_tokens,
         "store": False,
     }
@@ -48,9 +49,7 @@ def article(citation: Citation, version: ArticleVersion, label: str) -> str:
 
 
 def brief(query: LegalQuery, citations: list[Citation]) -> str:
-    when = (
-        f"{query.facts_date}, versions in force on that date" if query.facts_date else "none, versions in force today"
-    )
+    when = f"{query.facts_date}, versions in force on that date" if query.facts_date else "none"
     parts = [f"Answer in: {query.language}\nDate of the facts: {when}"]
     for citation in citations:
         parts.append(article(citation, citation.version, "applicable"))
