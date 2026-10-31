@@ -46,8 +46,8 @@ phase closes and how each will be demonstrated (a test and, from phase 7, a live
 
   The counts come from `make budget`.
 - **Identity is the author's.** App registrations, role assignments, federated credentials, GitHub secrets and variables go in
-  `../_scripts/product-legal-juriscope/<nn>-<what>.sh`; write the script and stop. Written: `01-codeql.sh` (phase 1). Planned:
-  `03-eval-variables.sh` (phase 3), `07-staging.sh` (phase 7), `08-production.sh` (phase 8).
+  `../_scripts/product-legal-juriscope/<nn>-<what>.sh`; write the script and stop. Written: `01-codeql.sh` (phase 1), `03-eval-variables.sh`
+  (phase 3). Planned: `07-staging.sh` (phase 7), `08-production.sh` (phase 8).
 - **Azure only in phases 7 and 8.** Until then: local, the Cosmos DB emulator, Bicep `what-if`, and the shared model deployments and
   `jur-articles-local` index with the author's own identity. Before creating anything that bills by the hour, state its price and how
   it is switched off. Staging ends every deploying phase at zero replicas.
@@ -206,6 +206,43 @@ phase closes and how each will be demonstrated (a test and, from phase 7, a live
   - a run with no outcome reported as `content_filter`;
   - unbounded history.
 
+## Decisions taken in phase 3
+
+- **The gate** (`eval/run.py`) runs each case through `Juriscope.ask` with an in-memory history, four cases at a time. It records
+  the retrieved articles by wrapping the retriever, and scores with one `@evaluator` check per metric in a `LocalEvaluator`, over
+  the cases the metric applies to. Groundedness is `GroundednessEvaluator` with `gpt-5-mini` as judge (`is_reasoning_model`, API
+  `2024-10-21`). The judge's context carries each version's in-force date and norm.
+- **Item-level metrics:** recall counts a case only when every gold article is in the top five, and citation precision only when
+  every citation is in `gold` or `also`. The `errors` threshold (0) is the one addition to the build prompt's table, and a missing
+  thresholded metric fails the gate. `eval/datasets/REVIEW.md` lists every item; **the golden set awaits the author.**
+- **Settings:** `SharedBase` holds the shared-base fields, so the gate and `chat_client` need no Cosmos endpoint; `Settings` adds
+  Cosmos. In CI, `SEARCH_INDEX` comes from `vars.EVAL_SEARCH_INDEX`.
+- **Rate limits arrive inside the stream.** The shared deployment rejects a request with an in-stream error, which the SDK raises as a
+  plain `openai.APIError`, not an `APIStatusError`. The SDK cannot retry it, and the framework wraps it in `ChatClientException`.
+  The gate retries the whole case after 20, 40 and 80 s, outside the concurrency limit. **Phase 4's 429 → 503 mapping must
+  handle this form too**, not only `RateLimitError`. A full run saturates the 100K TPM.
+- **Measured against TPM:** the deployment's token counter deducts the prompt only, not `max_completion_tokens`, so the judge's
+  60,000-token cap costs no quota.
+- **Prompts v2** replaced v1 after the first run: no claims about the sources, only the offence asked about, and nothing copied
+  from the question. Effort stays `low`: `minimal` was faster but failed correct refusal and groundedness (ADR-010).
+- **Open after phase 3:** full-suite citation precision 0.695 against 0.95, and a canary residual of about 1 in 15. The fix needs a
+  decision: *Counsel* receives *Analyst*'s restatement instead of the raw question, and refusal reasons come from a fixed list.
+- **CI:** `eval.yml` runs smoke and adversarial on pull requests touching the gated paths, Dependabot excluded, with one updated
+  comment. The full suite runs on demand from `main`, in `staging`. Errors in the report are truncated, with host names redacted.
+- **Review:** an independent review (subagent) raised 12 findings. Fixed:
+  - errors that crashed the run;
+  - a canary match that missed case and spacing variants;
+  - a missing metric passing silently;
+  - NaN judge scores;
+  - missing gated paths;
+  - raw error text in public comments;
+  - five test gaps and four doc mismatches.
+
+  Open for the author: the check is not required by `protect-main`, and the `pull_request` credential sits on the staging deploy
+  app.
+- **Python module limits:** `eval/run.py` is 118 non-blank lines against its 85. The throttling retry, host redaction and strict
+  gate came from live findings and the review. `eval/evaluators.py` is at its 85.
+
 ## Verified names (installed wheels, 2026-10-30)
 
 Installed together: `agent-framework-core` 1.23.0, `agent-framework-foundry` 1.15.0 (it brings `agent-framework-openai` 1.17.0 and
@@ -228,3 +265,4 @@ Installed together: `agent-framework-core` 1.23.0, `agent-framework-foundry` 1.1
 | Responses (2026-10-31) | `AgentResponse.value` (None for empty text), `.finish_reason` (a `str` NewType), `.usage_details["input_token_count" / "output_token_count"]`; options `response_format`, `reasoning`, `max_tokens` (sent as `max_output_tokens`), `store`; `FoundryChatClient.client` is an `AsyncOpenAI` (`with_options(timeout=)`); a 400 `content_filter` becomes `OpenAIContentFilterException` (needs a `BadRequestError`), anything else a `ChatClientException` chained `from` the cause |
 | Doubles and history (2026-10-31) | `BaseChatClient._inner_get_response(*, messages, stream, options)` returning `ResponseStream(updates, finalizer=)` or its `get_final_response()`; `HistoryProvider.get_messages(session_id)` and `save_messages(session_id, messages)`; `InMemoryHistoryProvider` keeps messages in session state only |
 | Embeddings (2026-10-31) | `agent_framework.foundry.FoundryEmbeddingClient(project_endpoint=, model=, credential=)`; `await get_embeddings(texts)` → items with `.vector` |
+| Evaluation (2026-10-31) | `EvalItem(conversation, *, context=, expected_output=)`; `@evaluator` passes only `query`, `response`, `expected_output`, `expected_tool_calls`, `conversation`, `tools`, `context`; `LocalEvaluator(*checks).evaluate(items, eval_name=)` → `EvalResults.passed`, `.total`, `.items[].is_passed`, `.input_text` (scores are pass or fail, never a mean); `GroundednessEvaluator(model_config, *, threshold=3, credential=, is_reasoning_model=)` returns `groundedness` (1–5, NaN when unparsed); `AzureOpenAIModelConfiguration(azure_endpoint=, azure_deployment=, api_version=)`; `openai` 3.41.0 uses `httpx2` |
