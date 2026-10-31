@@ -1,4 +1,5 @@
 from datetime import date
+from typing import Literal
 
 from pydantic import BaseModel, TypeAdapter
 
@@ -32,3 +33,47 @@ class Citation(Reference):
     current: ArticleVersion | None
     repealed: date | None
     see_also: list[Reference]
+
+
+class LegalQuery(BaseModel):
+    in_scope: bool
+    scope_reason: str
+    search_queries: list[str]
+    facts_date: date | None
+    language: str
+
+
+class Claim(BaseModel):
+    text: str
+    article_ids: list[str]
+
+
+class Draft(BaseModel):
+    claims: list[Claim]
+
+
+Step = Literal["analysing", "searching", "reading", "drafting", "verifying"]
+
+
+class PhaseEvent(BaseModel):
+    step: Step
+    articles: int | None = None
+
+
+class Outcome(BaseModel):
+    usage: dict[str, int] = {}
+    cost_eur: float = 0.0
+
+
+class Answer(Outcome):
+    text: str
+    citations: list[Citation]
+    claims: int
+    dropped_claims: int
+    language: str
+    facts_date: date | None
+
+
+class Refusal(Outcome):
+    reason: Literal["out_of_scope", "no_evidence", "content_filter"]
+    detail: str = ""

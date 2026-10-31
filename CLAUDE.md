@@ -103,8 +103,13 @@ phase closes and how each will be demonstrated (a test and, from phase 7, a live
   Jailbreak, Protected Material text and code) and `text-embedding-3-small` (version 1, Global Standard, 120K TPM, `NoAutoUpgrade`);
   no `gpt-5-nano` (no quota in this subscription, so every model call uses `gpt-5-mini`); registry `craiplatformshared` (Basic, admin user off); workspace `log-aiplatform-shared-swc`; action group
   `ag-aiplatform-shared`; budget `budget-aiplatform-monthly`.
-- **Pending:** the search service `srch-aiplatform-shared-neu` does not exist yet, so every search role (CI, runtime, the author's
-  and the search identity's on Foundry) is pending. Phase 2 starts by checking that it is `running`; if not, it stops and reports.
+- **Search:** `srch-aiplatform-shared` (Basic, `spaincentral`, same resource group), created by hand on 2026-10-31.
+  - **Settings:** `01-azure.sh` brings it to the landing-zone template's settings: system identity, roles only, semantic ranker on
+    standard, shared tags, logs to the shared workspace, and Cognitive Services User and OpenAI User for its identity on Foundry.
+  - **What spaincentral changes:** the region has no AI enrichment of its own, so built-in skills rely on keyless billing. There are
+    no higher-capacity partitions (2 GB, 1 GB of vectors, 15 indexes, shared by P05 to P08). Every search call crosses regions from
+    `swedencentral`.
+  - **Phase 2** starts with the build prompt's search precheck; if any check fails, it stops and reports.
 - **Quotas:** Cosmos DB region access in `swedencentral` allowed, no accounts yet; no Key Vaults, active or soft-deleted; storage
   accounts 0 of 250 in the region; the global names `kv-juriscope-*`, `stjuriscope*` and `cosmos-juriscope-*` are available.
   **Container Apps managed environments: 15** in `swedencentral`, 0 used. Each product has one environment per stage, all in
@@ -153,6 +158,54 @@ phase closes and how each will be demonstrated (a test and, from phase 7, a live
 - **Tooling:** `types-defusedxml` pinned for `mypy --strict`. `make` is not installed on the author's Windows host; sessions run the
   `Makefile` targets' commands with `.venv/Scripts` on the `PATH`. CI runs `make check` as written.
 
+## Decisions taken in phase 2
+
+- **Search precheck passed on 2026-10-31:** `running`, system identity, roles only, semantic ranker standard, shared tags,
+  `to-shared-workspace` diagnostics, Cognitive Services User and OpenAI User for its identity on Foundry, and the seven search roles
+  of the build prompt's `Identity` table. `guardrail-chat` read: Hate, Sexual, Violence and Self-harm blocking at medium on prompt
+  and completion; Prompt Shields jailbreak on; Protected Material text and code on; no indirect-attack (document) shield.
+- **The workflow runs directly** (`workflow.run(..., stream=True)`) and `Juriscope.ask` loads and saves the history itself. This is
+  the build prompt's fallback, chosen on evidence (ADR-001). `as_agent` drops custom and `executor_invoked` events, and the history
+  provider would store intermediate outputs as assistant messages. Phases come from `executor_invoked`, plus the article count
+  that `retrieve` yields. Executors are module functions wrapped per build. The edges out of `retrieve` and `verify` route by
+  message type.
+- **Only answered turns enter the history,** capped at the last ten messages for the agents (ADR-002). The history provider gets a
+  `container_client`, because data-plane RBAC cannot create containers.
+- **Local Cosmos DB:** `make emulator` runs `juriscope-cosmos` on host ports 8091 and 8090, so it can run beside other products'
+  emulators on 8081. `azure-core` refuses bearer tokens over HTTP, so the emulator needs a key, which it does not check.
+  **Phase 4 owns the Cosmos client:** a local-only key branch, plus the `juriscope` database and the `history` and
+  `conversations` containers, created only in the emulator. For phase 2 they were created once with `create_*_if_not_exists`.
+- **Settings** come from the environment or a gitignored `.env`, under the GitHub variable names plus `SEARCH_INDEX` and
+  `COSMOS_ENDPOINT`. `chat_model` must have a price in `EUR_PER_MILLION_TOKENS`.
+- **Local index:** `make index` (`ops/index.py --target local`) took 1 min 19 s on 2026-10-31. It holds the 746 provisions in force
+  (723 articles and 23 dispositions), each its title plus today's text, and all of them map back to themselves through `locate`.
+  Embeddings come from `FoundryEmbeddingClient`. The vectorizer uses the account endpoint (`cognitiveservices.azure.com`, a
+  supported domain) with the search identity. Size: 11.9 MB, 3.3 MB of vectors, 1 of the service's 15 indexes. Documents
+  that fail inside a 207 response fail the run.
+- **Known limit, for ADR-003 in phase 6:** repealed provisions cannot be retrieved. The index and `locate` hold today's text, and
+  so will the Layout index of the consolidated PDF. So facts dated before a repeal (Book III, 2015) find nothing for the repealed
+  provision. Indexing their last versions would need both indexes and `locate` extended.
+- **Errors are not refusals** (ADR-005): truncation (`finish_reason` `length`), invalid JSON, a rejected field, a run with no
+  outcome, `429` and every other client error raise. `content_filter` covers the filter exception, the filter finish reason, and
+  the guardrail's canned "I'm sorry…" text. That text is what the streaming structured-output path returns for a blocked prompt,
+  and the SDK wraps it as a `ChatClientException` caused by a `json_invalid` error.
+- **Guardrail false positives, measured:** none on 10 general questions, three violent offences or adult sexual assault. Both
+  questions on sexual offences against minors were blocked on every attempt (prompt filter, Sexual: high). That is a shared-base
+  limit; phase 3's `RESPONSIBLE_AI.md` must state it.
+- **Latency against SLA-02 is at risk:** 19 live answers took a median of 10.7 s and 4 of 19 finished under 8 s; *Counsel* is the
+  6.0 s median step. `reasoning.effort: "minimal"` is accepted (the build prompt says otherwise) and was faster on four questions.
+  **Phase 3 compares `low` and `minimal` on the full suite** before SLA-02 is measured in phase 7 (ADR-010).
+- **Measured cost per answered question:** median 0.0046 € (0.0042 to 0.0062 €), the semantic query included at list price.
+- **Review:** an independent review (subagent) found eight defects, all fixed with a test each:
+  - a truncated or empty reply reported as `content_filter`;
+  - model-written citation marks surviving into the answer;
+  - an empty query list still searching;
+  - a field-level parse error treated as a decline;
+  - partial index upload failures passing silently;
+  - an unpriced model failing after its tokens were spent;
+  - a run with no outcome reported as `content_filter`;
+  - unbounded history.
+
 ## Verified names (installed wheels, 2026-10-30)
 
 Installed together: `agent-framework-core` 1.23.0, `agent-framework-foundry` 1.15.0 (it brings `agent-framework-openai` 1.17.0 and
@@ -170,3 +223,8 @@ Installed together: `agent-framework-core` 1.23.0, `agent-framework-foundry` 1.1
 | Evaluation | `agent_framework.LocalEvaluator`, `evaluator`, `evaluate_agent`, `evaluate_workflow`; `azure.ai.evaluation.GroundednessEvaluator`, `RelevanceEvaluator` |
 | Telemetry | `azure.monitor.opentelemetry.configure_azure_monitor`; `agent_framework.observability.enable_instrumentation`, `create_resource`, `create_metric_views` |
 | Search | `azure.search.documents.aio.SearchClient`; `azure.search.documents.models.VectorizableTextQuery` |
+| Workflow events (2026-10-31) | `WorkflowBuilder(start_executor=, output_from=, intermediate_output_from=)`; `WorkflowAgent` forwards only `output`, `intermediate`, `data`, `request_info`; `executor_completed.data` is the sent messages plus the yielded outputs; a message reaches only targets whose handler accepts its type; an executor's exception leaves `workflow.run` with its own type |
+| Agent executor (2026-10-31) | `AgentExecutor(agent, *, id=)`; `AgentExecutorRequest(messages=, should_respond=)`; `AgentExecutorResponse.agent_response`, `.full_conversation` (input plus the reply); in streaming workflows the agent streams and its updates are hidden unless the executor is listed as output |
+| Responses (2026-10-31) | `AgentResponse.value` (None for empty text), `.finish_reason` (a `str` NewType), `.usage_details["input_token_count" / "output_token_count"]`; options `response_format`, `reasoning`, `max_tokens` (sent as `max_output_tokens`), `store`; `FoundryChatClient.client` is an `AsyncOpenAI` (`with_options(timeout=)`); a 400 `content_filter` becomes `OpenAIContentFilterException` (needs a `BadRequestError`), anything else a `ChatClientException` chained `from` the cause |
+| Doubles and history (2026-10-31) | `BaseChatClient._inner_get_response(*, messages, stream, options)` returning `ResponseStream(updates, finalizer=)` or its `get_final_response()`; `HistoryProvider.get_messages(session_id)` and `save_messages(session_id, messages)`; `InMemoryHistoryProvider` keeps messages in session state only |
+| Embeddings (2026-10-31) | `agent_framework.foundry.FoundryEmbeddingClient(project_endpoint=, model=, credential=)`; `await get_embeddings(texts)` → items with `.vector` |
