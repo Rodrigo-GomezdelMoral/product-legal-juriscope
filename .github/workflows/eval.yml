@@ -1,0 +1,109 @@
+name: eval
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - app/prompts/**
+      - app/agents.py
+      - app/workflow.py
+      - app/retrieval.py
+      - app/corpus.py
+      - app/models.py
+      - app/config.py
+      - requirements*.txt
+      - data/boe/**
+      - eval/**
+      - .github/workflows/eval.yml
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: eval-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  FOUNDRY_PROJECT_ENDPOINT: ${{ vars.FOUNDRY_PROJECT_ENDPOINT }}
+  FOUNDRY_ACCOUNT_ENDPOINT: ${{ vars.FOUNDRY_ACCOUNT_ENDPOINT }}
+  SEARCH_ENDPOINT: ${{ vars.SEARCH_ENDPOINT }}
+  SEARCH_INDEX: ${{ vars.EVAL_SEARCH_INDEX }}
+  CHAT_MODEL: ${{ vars.CHAT_MODEL }}
+  EMBEDDING_MODEL: ${{ vars.EMBEDDING_MODEL }}
+  PYTHONWARNINGS: ignore
+
+jobs:
+  pull-request:
+    if: github.event_name == 'pull_request' && github.actor != 'dependabot[bot]'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    permissions:
+      contents: read
+      id-token: write
+      pull-requests: write
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: requirements*.txt
+      - run: make install
+      - uses: azure/login@v3
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+      - name: Smoke and adversarial suites against the thresholds
+        run: python -m eval.run smoke adversarial
+      - name: Scores on the pull request
+        if: always() && hashFiles('eval/results/report.md') != ''
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PR: ${{ github.event.pull_request.number }}
+        run: |
+          cat eval/results/report.md >> "$GITHUB_STEP_SUMMARY"
+          gh pr comment "$PR" --repo "$GITHUB_REPOSITORY" --body-file eval/results/report.md --edit-last --create-if-none
+      - if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: evaluation-pr
+          path: eval/results/
+          if-no-files-found: ignore
+
+  full:
+    if: github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    environment: staging
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: requirements*.txt
+      - run: make install
+      - uses: azure/login@v3
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+      - name: Full suite against the thresholds
+        run: python -m eval.run
+      - if: always() && hashFiles('eval/results/report.md') != ''
+        run: cat eval/results/report.md >> "$GITHUB_STEP_SUMMARY"
+      - if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: evaluation-full
+          path: eval/results/
+          if-no-files-found: ignore

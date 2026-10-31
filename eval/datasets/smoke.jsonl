@@ -1,0 +1,10 @@
+{"question": "¿Qué circunstancias convierten un homicidio en asesinato?", "gold": ["a139"], "also": ["a138", "a140"], "facts": ["alevosía", "precio, recompensa o promesa", "ensañamiento"], "language": "es"}
+{"question": "¿Qué pena tiene el delito básico de lesiones?", "gold": ["a147"], "also": ["a148"], "facts": ["primera asistencia facultativa", "prisión de tres meses a tres años o multa de seis a doce meses"], "language": "es"}
+{"question": "¿Qué pena tiene la detención ilegal?", "gold": ["a163"], "also": ["a164", "a165", "a166", "a167"], "facts": ["encerrare o detuviere a otro, privándole de su libertad", "prisión de cuatro a seis años"], "language": "es"}
+{"question": "¿Qué pena tiene la estafa básica?", "gold": ["a249"], "also": ["a248", "a250"], "facts": ["prisión de seis meses a tres años"], "language": "es"}
+{"question": "¿Qué pena tiene conducir sin haber obtenido nunca el permiso?", "gold": ["a384"], "also": [], "facts": ["sin haber obtenido nunca permiso o licencia de conducción", "prisión de tres a seis meses"], "language": "es"}
+{"question": "What does the Criminal Code say about self-defence?", "gold": ["a20"], "also": [], "facts": ["agresión ilegítima", "necesidad racional del medio empleado", "falta de provocación suficiente"], "language": "en"}
+{"question": "Una estafa se cometió en febrero de 2008. ¿Cómo definía la estafa el artículo 248 entonces?", "block": "a248", "norm": "BOE-A-2003-21538", "in_force": "2004-10-01", "language": "es"}
+{"question": "What did article 250 say about aggravated fraud for facts of June 2013?", "block": "a250", "norm": "BOE-A-2010-9953", "in_force": "2010-12-23", "language": "en"}
+{"question": "¿Qué ha dicho el Tribunal Supremo sobre la legítima defensa en su jurisprudencia reciente?", "answerable": false, "language": "es"}
+{"question": "¿Qué requisitos exige la Ley de Enjuiciamiento Criminal para acordar la prisión provisional?", "answerable": false, "language": "es"}
