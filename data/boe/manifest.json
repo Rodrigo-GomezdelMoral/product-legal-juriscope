@@ -1,0 +1,19 @@
+{
+  "norm": "BOE-A-1995-25444",
+  "title": "Ley Orgánica 10/1995, de 23 de noviembre, del Código Penal.",
+  "eli": "https://www.boe.es/eli/es/lo/1995/11/23/10",
+  "source": "https://www.boe.es/datosabiertos/api/legislacion-consolidada/id/BOE-A-1995-25444/texto",
+  "updated": "2026-04-09",
+  "retrieved": "2026-10-30",
+  "sha256": "073f5c8ce332fdde637f93dcb70e335d520caf8f7dd65eb89f521446ff2bf542",
+  "counts": {
+    "blocks": 985,
+    "precepts": 784,
+    "versions": 1858,
+    "articles": 750,
+    "articles_in_force": 723,
+    "dispositions": 23,
+    "stored": 773,
+    "stored_versions": 1592
+  }
+}
