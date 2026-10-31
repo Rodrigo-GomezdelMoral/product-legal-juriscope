@@ -81,25 +81,25 @@ the cases it applies to, and its value is the share of those cases where the che
   paths is evaluated with a manual run after the merge.
 - **Index:** `jur-articles-local` (repository variable `EVAL_SEARCH_INDEX`) until phase 7 switches it to `jur-articles-stg`.
 
-## Measurements, 2026-10-31 (golden set not yet verified)
+## Measurements, 2026-10-31 (v1 to v3 before the golden set was verified, v4 after)
 
 Local runs of `python -m eval.run` with the author's identity against the shared `gpt-5-mini` deployment and `jur-articles-local`.
 Seconds run from the question to the outcome, without the judge.
 
-| Metric | Threshold | v1, `low`, 14:24 UTC | v2, `low`, 14:41 UTC | v2, `minimal`, 14:54 UTC | v3, `low`, 17:16 UTC |
-|---|---|---|---|---|---|
-| Cases (golden, versions, unanswerable, adversarial) | | 60, 15, 20, 15 | 60, 15, 20, 15 | 60, 15, 20, 15 | 60, 15, 20, 15 |
-| `errors` | 0 | 16 ✗ | 0 | 0 | 1 ✗ |
-| `recall_at_5` | ≥ 0.85 | 0.926 (54) | 0.900 (60) | 0.883 (60) | 0.966 (59) |
-| `citation_precision` | ≥ 0.95 | 0.208 (53) ✗ | 0.695 (59) ✗ | 0.603 (58) ✗ | 0.737 (57) ✗ |
-| `groundedness` | ≥ 0.90 | 0.972 (71) | 0.964 (84) | 0.878 (86) ✗ | 0.985 (82) |
-| `version_accuracy` | ≥ 0.90 | 1.000 (9) | 1.000 (15) | 1.000 (15) | 1.000 (15) |
-| `correct_refusal` | ≥ 0.90 | 1.000 (16) | 1.000 (20) | 0.800 (20) ✗ | 1.000 (20) |
-| `false_refusal` | ≤ 0.05 | 0.016 (63) | 0.013 (75) | 0.027 (75) | 0.027 (74) |
-| `canary_appearances` | 0 | 2 of 15 ✗ | 1 of 15 ✗ | 2 of 15 ✗ | 0 of 15 |
-| `answer_language` | reported | 0.986 (71) | 0.988 (84) | 0.988 (86) | 0.988 (82) |
-| Seconds per question, p50 and p95 | | 9.1, 14.1 | 7.6, 12.4 | 4.6, 8.2 | 8.0, 14.0 |
-| Median cost of an answer | | 0.0047 € | 0.0042 € | 0.0034 € | 0.0043 € |
+| Metric | Threshold | v1, `low`, 14:24 UTC | v2, `low`, 14:41 UTC | v2, `minimal`, 14:54 UTC | v3, `low`, 17:16 UTC | v4, `low`, 18:05 UTC |
+|---|---|---|---|---|---|---|
+| Cases (golden, versions, unanswerable, adversarial) | | 60, 15, 20, 15 | 60, 15, 20, 15 | 60, 15, 20, 15 | 60, 15, 20, 15 | 60, 15, 20, 15 |
+| `errors` | 0 | 16 ✗ | 0 | 0 | 1 ✗ | 0 |
+| `recall_at_5` | ≥ 0.85 | 0.926 (54) | 0.900 (60) | 0.883 (60) | 0.966 (59) | 0.933 (60) |
+| `citation_precision` | ≥ 0.95 | 0.208 (53) ✗ | 0.695 (59) ✗ | 0.603 (58) ✗ | 0.737 (57) ✗ | 1.000 (59) |
+| `groundedness` | ≥ 0.90 | 0.972 (71) | 0.964 (84) | 0.878 (86) ✗ | 0.985 (82) | 0.973 (83) |
+| `version_accuracy` | ≥ 0.90 | 1.000 (9) | 1.000 (15) | 1.000 (15) | 1.000 (15) | 1.000 (15) |
+| `correct_refusal` | ≥ 0.90 | 1.000 (16) | 1.000 (20) | 0.800 (20) ✗ | 1.000 (20) | 1.000 (20) |
+| `false_refusal` | ≤ 0.05 | 0.016 (63) | 0.013 (75) | 0.027 (75) | 0.027 (74) | 0.013 (75) |
+| `canary_appearances` | 0 | 2 of 15 ✗ | 1 of 15 ✗ | 2 of 15 ✗ | 0 of 15 | 0 of 15 |
+| `answer_language` | reported | 0.986 (71) | 0.988 (84) | 0.988 (86) | 0.988 (82) | 1.000 (83) |
+| Seconds per question, p50 and p95 | | 9.1, 14.1 | 7.6, 12.4 | 4.6, 8.2 | 8.0, 14.0 | 6.8, 11.6 |
+| Median cost of an answer | | 0.0047 € | 0.0042 € | 0.0034 € | 0.0043 € | 0.0041 € |
 
 What the gate found, and what changed:
 
@@ -125,17 +125,38 @@ What the gate found, and what changed:
   a question that stands on its own as written and never widens it.
 - **The one error in the v3 run** is *Counsel*'s JSON cut mid-string on a question about human trafficking, which the SDK fails
   to parse. It did not recur in the pull-request run; whether the shared guardrail cut the completion is not yet known.
+- **Prompt v4** (`counsel_v4.md`, phase 4): the required `eval` check failed on the pull request, citation precision 0.833 over
+  the six smoke cases, because *Counsel* cited more than article 20 for self-defence (21 and 118 in two of four probes). Over-citation was systematic: on the 15
+  full-suite failures of v3 and on that case, *Counsel* wrote true claims from articles the question did not need, in three kinds: other
+  offences (false accusation beside slander, refusing the breath test beside drunk driving), other forms or special cases
+  (negligent injuries with a firearm, retraction in false testimony, suspension for one offence) and general rules (how
+  mitigating circumstances set the penalty, civil liability, prosecution, liability of legal persons). Probed on those 15
+  questions, v3 kept 5 precise and v4 14. v4 makes *Counsel* choose the fewest articles that answer the question before
+  writing (the one that answers it best, and another only when the question cannot be answered without it) and names the
+  three kinds to leave out. *Analyst*, the brief and the verification are unchanged; the code already cites only the articles
+  of verified claims. The full suite passes every threshold; p50 fell from 8.0 to 6.8 s and the median cost from 0.0043 to 0.0041 €,
+  consistent with shorter drafts.
+  Recall moved from 0.966 to 0.933 with nothing in retrieval changed (*Counsel* runs after the search), so it reads as run to
+  run variation in *Analyst*'s queries; groundedness moved from 0.985 to 0.973.
 
-**The pull-request gate passes locally** with prompt v3, at 17:09 UTC: smoke 10 and adversarial 15. Recall, citation precision,
+**The pull-request gate with prompt v4,** three runs at 17:56, 17:57 and 17:59 UTC (smoke 10 and adversarial 15): citation
+precision 1.000 (6) in all three, recall 1.000 (6), version accuracy 1.000 (2), correct refusal 1.000 (2), false refusal 0 (8),
+canary 0, p50 7.2 to 8.1 s. Groundedness was 0.931, 0.889 ✗ and 0.912 (18, 18 and 17 answers), and the third run had one error,
+a transient connection error to the model, which the gate does not retry. So the first run passed and the other two failed on
+checks other than citations. The groundedness judge reads the raw adversarial question, injection included, and scored a
+faithful answer on coercion 4 of 5 (0.75) in both of two probes; over 18 answers, one or two such scores decide the 0.90 line.
+
+**The pull-request gate passed locally** with prompt v3, at 17:09 UTC: smoke 10 and adversarial 15. Recall, citation precision,
 version accuracy, correct refusal and canary absence are all perfect; false refusal is 0, groundedness 0.917 over 18 answers, and p50
 8.8 s. (With v2, at 15:03 UTC: the same, groundedness 0.931, p50 7.5 s.) The smoke cases are the ones that passed every check in both
 v2 runs, so a failure there signals a regression, not noise; the widened v3 draft failed three of their six citation checks.
 
 **Open, for the author:**
-- **Citation precision on the full suite,** 0.737 at item level with v3 (0.695 with v2). It mixes gaps in the acceptable lists, which
-  the golden review resolves, with real over-citation, such as article 22 (aggravating circumstances) cited beside article 139 for
-  the definition of *alevosía*.
+- **Groundedness on the pull-request sets** sits near its 0.90 line (0.889 to 0.931 over five runs of v2, v3 and v4), and a
+  connection error to the model counts as an error. Neither depends on the prompt; both make the required check flaky.
+- **Completeness is not measured.** Citation precision penalises only extra articles, and the golden `facts` are not scored, so
+  v4's preference for the fewest articles could leave out an article a lawyer needs without any metric showing it.
 - **The canary,** 0 of 15 with v3 in both runs. One run per configuration is a small sample; the adversarial set keeps watching it.
 
-**Baseline for model and prompt changes ([ADR-010](adr/010-model-lifecycle.md)):** the v3 `low` column, until the golden set is
-verified and the full suite is re-run.
+**Baseline for model and prompt changes ([ADR-010](adr/010-model-lifecycle.md)):** the v4 `low` column, measured against the
+verified golden set.

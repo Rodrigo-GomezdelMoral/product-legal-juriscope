@@ -11,7 +11,7 @@ from app.models import ArticleVersion, Citation, Draft, LegalQuery
 
 PROMPTS = Path(__file__).resolve().parent / "prompts"
 ANALYST = (PROMPTS / "analyst_v3.md").read_text(encoding="utf-8")
-COUNSEL = (PROMPTS / "counsel_v3.md").read_text(encoding="utf-8")
+COUNSEL = (PROMPTS / "counsel_v4.md").read_text(encoding="utf-8")
 TIMEOUT_SECONDS = 60
 EFFORT = "low"
 
