@@ -252,7 +252,19 @@ phase closes and how each will be demonstrated (a test and, from phase 7, a live
   `not_legal`); *Counsel* receives one message with that question and the articles, never the conversation. `Refusal.scope`
   replaces the free-text `detail`. A first draft let *Analyst* widen the question and citation precision fell to 0.477; the final
   v3 measured, on the full suite, recall 0.966, citation precision 0.737 (v2 0.695), groundedness 0.985, canary 0 of 15, false
-  refusal 0.027, one error (*Counsel*'s JSON cut mid-string, not recurring). The PR suites pass (exit 0). v3 is the baseline.
+  refusal 0.027, one error (*Counsel*'s JSON cut mid-string, not recurring). The PR suites pass (exit 0). v3 was the baseline until v4.
+- **Prompt `counsel_v4.md` (2026-10-31), the fix of the required `eval` check.** The PR gate failed on citation precision 0.833
+  (the self-defence smoke case cited more than article 20; probes: 21 and 118 in 2 of 4). Over-citation was systematic: true claims from articles the
+  question did not need (other offences, other forms or special cases, general rules such as sentencing, civil liability,
+  prosecution, legal persons). v4 makes *Counsel* choose the fewest articles that answer the question before writing and names
+  those kinds; *Analyst* v3, the brief and `compose` are unchanged (`compose` already cites only verified claims' articles).
+  Probe on v3's 15 full-suite failures: v3 5 precise, v4 14. Full suite 18:05 UTC: citation precision 1.000 (59), recall
+  0.933 (60, retrieval untouched), groundedness 0.973 (83), version 1.000, correct refusal 1.000, false refusal 0.013 (75),
+  canary 0 of 15, errors 0, p50 6.8 s, p95 11.6 s; the gate passes. PR suites, three runs: citation precision 1.000 (6) each;
+  exit 0 once, then groundedness 0.889 (the judge reads the raw adversarial question and scored a faithful coercion answer 4 of 5) and
+  one transient `APIConnectionError`, which the gate does not retry. Both are open for the author. v4 is the baseline.
+  `test_agents_run_the_latest_prompts` holds that each agent loads its newest prompt file, and
+  `test_counsel_chooses_the_fewest_articles` the v4 rule. Completeness is not measured (golden `facts` are not scored).
 - **API (`app/main.py`).** FastAPI's own SSE (`fastapi.sse.EventSourceResponse`, `ServerSentEvent`). The `start` dependency runs the
   ownership check and pulls events until *Analyst* has replied, so failures there are real HTTP statuses; after the first byte an
   `error` event carries the same RFC 9457 body and the request span is marked failed. Mapping: rate limit (`RateLimitError`, or
