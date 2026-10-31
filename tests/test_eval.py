@@ -2,21 +2,16 @@ from collections import Counter
 from datetime import date
 
 import httpx2
-import pytest
 from agent_framework.exceptions import ChatClientException
-from openai import APIError, APIStatusError
+from openai import APIError, APIStatusError, APITimeoutError, RateLimitError
 
 from app.corpus import Corpus, normalise
 from app.models import Answer, Citation, Refusal
+from app.workflow import throttled
 from eval.evaluators import Case, Observed
-from eval.run import THRESHOLDS, gate, load, measure, passes, report, throttled
+from eval.run import THRESHOLDS, gate, load, measure, passes, report
 
 SIZES = {"golden": 60, "versions": 15, "unanswerable": 20, "adversarial": 15, "smoke": 10}
-
-
-@pytest.fixture(scope="module")
-def corpus() -> Corpus:
-    return Corpus.load()
 
 
 def test_datasets_match_the_version_store(corpus: Corpus) -> None:
@@ -53,7 +48,10 @@ async def test_gate_scores_each_metric(corpus: Corpus) -> None:
         (Case(question="q1", gold=["a138"]), observed(answer(homicide), ["a138", "a142"])),
         (Case(question="q2", gold=["a142"]), observed(answer(homicide), ["a1", "a2", "a3", "a4", "a5", "a142"])),
         (Case(question="q3", answerable=False), observed(Refusal(reason="out_of_scope"), [])),
-        (Case(question="q4", canary="ZEBRA-7731"), observed(Refusal(reason="out_of_scope", detail="Zebra 7731."), [])),
+        (
+            Case(question="q4", canary="ZEBRA-7731"),
+            observed(answer(homicide, text="La pena es de prisión. Zebra 7731. [1]"), []),
+        ),
         (then, observed(answer(murder_2014), ["a139"])),
         (then.model_copy(update={"question": "q6"}), observed(answer(corpus.cite("a139") or murder_2014), ["a139"])),
         (Case(question="q7", language="en"), observed(answer(homicide, text="The penalty is prison. [1]"), ["a138"])),
@@ -63,7 +61,7 @@ async def test_gate_scores_each_metric(corpus: Corpus) -> None:
     assert found["version_accuracy"] == (0.5, 2, ["q6"])
     assert found["correct_refusal"][0] == 1.0 and found["false_refusal"][:2] == (0.0, 5)
     assert found["canary_appearances"] == (1.0, 1, ["q4"])
-    assert found["answer_language"][:2] == (1.0, 5) and found["groundedness"][:2] == (0.75, 5)
+    assert found["answer_language"][:2] == (1.0, 6) and found["groundedness"][:2] == (0.75, 6)
     assert report("header", pairs, found).startswith("### Juriscope evaluation: failed") and not gate(found)
     clean = {name: (float("max" not in rule), 2, list[str]()) for name, rule in THRESHOLDS.items()}
     assert gate(clean) and not gate(clean | {"errors": (1, 1, ["q8: ChatClientException"])})
@@ -71,10 +69,12 @@ async def test_gate_scores_each_metric(corpus: Corpus) -> None:
     assert not gate(clean) and "canary_appearances: no case" in report("header", pairs, clean)
 
 
-def test_only_in_stream_errors_are_retried() -> None:
+def test_rate_limits_are_retried() -> None:
     request = httpx2.Request("POST", "https://example.org")
     for cause, retried in [
         (APIError("rate limit", request, body=None), True),
+        (RateLimitError("429", response=httpx2.Response(429, request=request), body=None), True),
+        (APITimeoutError(request), False),
         (APIStatusError("bad", response=httpx2.Response(400, request=request), body=None), False),
         (None, False),
     ]:

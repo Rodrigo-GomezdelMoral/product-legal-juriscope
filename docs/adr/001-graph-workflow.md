@@ -30,11 +30,14 @@ fallback if per-step events did not surface through it.
 
 Option 3, in `app/workflow.py`:
 
-- `analyze` (agent *Analyst*) → `retrieve` when `in_scope`, → `refuse` otherwise, so an out-of-scope question never reaches the
+- `analyze` (agent *Analyst*) → `retrieve` when its `scope` is `criminal_code`, → `refuse` otherwise, so an out-of-scope question never reaches the
   search. `retrieve` → `draft` (agent *Counsel*) or → `refuse` when no article is found; `draft` → `verify` → the answer, or →
   `refuse` when no claim survives. The edges out of `retrieve` and `verify` carry no condition: the framework delivers a message
   only to the targets whose handler accepts its type, so an `AgentExecutorRequest` reaches `draft` and a `Refusal` reaches
   `refuse`.
+- **Only *Analyst* reads the conversation and the lawyer's words.** *Counsel* receives one message: *Analyst*'s restatement of the
+  question, the language, the date of the facts and the retrieved articles (phase 4, decision approved by the author on
+  2026-10-31). An instruction written in the question has to survive the restatement to reach the drafter.
 - **The workflow is run with `workflow.run(..., stream=True)`, not through `as_agent`,** and `Juriscope.ask` loads and saves the
   history itself with the provider's `get_messages` and `save_messages`. This is the fallback the build prompt allowed, chosen on
   evidence from the installed `agent-framework-core` 1.23.0:

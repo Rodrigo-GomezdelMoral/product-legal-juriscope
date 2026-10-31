@@ -20,13 +20,16 @@ answer from model knowledge. A prompt can ask for both; only code can guarantee 
 
 Option 3.
 
-- **Models:** *Analyst* returns `LegalQuery` (`in_scope`, `scope_reason`, `search_queries`, `facts_date`, `language`); *Counsel*
-  returns `Draft`. Both through the framework's `response_format`, which the Responses API enforces as a strict JSON schema.
+- **Models:** *Analyst* returns `LegalQuery` (`question`, its restatement of the lawyer's question; `scope`, one of
+  `criminal_code`, `case_law`, `other_law` and `not_legal`; `search_queries`, `facts_date`, `language`); *Counsel* returns
+  `Draft`. Both through the framework's `response_format`, which the Responses API enforces as a strict JSON schema.
 - **Verification** (`compose` in `app/workflow.py`): unverified claims are dropped and counted (`dropped_claims`, the K2 KPI). The
   answer is composed from the verified claims only, numbered by first citation, and every citation carries the full article from
   the BOE version store, never text from the model. Citation marks the model writes into a claim are removed before numbering.
 - **Typed refusal** with three reasons:
-  - `out_of_scope`: *Analyst* says the Code cannot answer (case law, other laws); the search is never called.
+  - `out_of_scope`: *Analyst* says the Code cannot answer; the search is never called. The refusal carries *Analyst*'s `scope`
+    (`case_law`, `other_law` or `not_legal`), a value from a fixed list that the interface words. Until phase 4 the reason was
+    a sentence written by the model, and the gate found the canary copied into it; a typed value cannot carry it.
   - `no_evidence`: *Analyst* gives no search query, no article is retrieved, no claim survives verification, or *Counsel*
     returns no claims.
   - `content_filter`: the shared guardrail or the model declined. This covers `ChatClientContentFilterException` (a prompt
@@ -36,8 +39,12 @@ Option 3.
     fails to parse and Agent Framework wraps in a generic `ChatClientException`. `declined()` treats that exception as a refusal
     only when its cause is a `json_invalid` validation error on text that does not start with `{`.
 - **Errors stay errors:** truncated or invalid JSON, a field the schema rejects, a reply cut by `max_tokens` (`finish_reason`
-  `length`), a run that ends with no outcome, and every other client error, a `429` included, raise. Phase 4 turns them into
-  problem responses; none of them is reported to the lawyer as a refusal.
+  `length`), a run that ends with no outcome, and every other client error, a `429` included, raise. None of them is reported
+  to the lawyer as a refusal. The API turns them into RFC 9457 problem responses with the trace id: a rate limit (`RateLimitError`
+  after the SDK's own retries, or the shared deployment's in-stream rejection, which the SDK cannot retry) is a `503` with the
+  `Retry-After` the service sent, or 20 s when it sent none; an unavailable search or Cosmos DB, a connection failure or a model
+  timeout, a `503`; a request the model service rejects (any other 4xx) or an unusable reply (`UnusableReplyError`: truncation,
+  invalid output, no outcome), a `502` without `Retry-After`, because repeating it would not help.
 
 ## Consequences
 

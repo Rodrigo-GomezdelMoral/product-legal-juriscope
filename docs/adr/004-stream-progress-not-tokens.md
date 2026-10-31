@@ -19,9 +19,18 @@ the question. Streaming tokens would show the lawyer raw JSON and, worse, claims
 ## Decision
 
 Option 3. `Juriscope.ask` yields `PhaseEvent`s (`analysing`, `searching`, `reading` with the number of articles, `drafting`,
-`verifying`) and then one `Answer` or `Refusal`. Phase 4 sends them over SSE as `phase` events, then `answer` or `refusal`; the
-interface shows the progress line *Analysing the question · Searching the Code · Reading n articles · Drafting · Verifying
-citations*.
+`verifying`) and then one `Answer` or `Refusal`. The API sends them over SSE with FastAPI's own `EventSourceResponse` and
+`ServerSentEvent` (keep-alive comments included): `phase` events, then one `answer` or `refusal` carrying the conversation id and
+the saved turn. The interface shows the progress line *Analysing the question · Searching the Code · Reading n articles ·
+Drafting · Verifying citations*.
+
+**The response starts once *Analyst* has replied.** An HTTP status cannot change after the first byte, so the API runs the
+ownership check, the history read and the first model call before it answers. A failure there is a problem response with its
+real status: a model rate limit is a `503` with `Retry-After`, an unavailable search or Cosmos DB a `503`. A failure after the
+first byte (a rate limit on *Counsel*, the search) ends the stream with an `error` event carrying the same problem document; the
+request span is marked failed and the exception recorded, so the availability SLI can count it although the status was 200. The
+interface shows *Analysing the question* as soon as it sends, because that step always comes first. Measured locally on
+2026-10-31 (six questions in two runs, shared models): the first byte arrived after 1.9 to 9.0 s, the analysis step.
 
 The phases come from the workflow's own `executor_invoked` events, plus the article count that `retrieve` yields (ADR-001). The
 agent executors still stream their model calls internally, because the workflow runs in streaming mode, but their updates are not

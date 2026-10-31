@@ -5,8 +5,9 @@ Juriscope's impact assessment follows the sections of the
 (June 2022) and the responsible AI guidance of the
 [Well-Architected AI workload guide](https://learn.microsoft.com/azure/well-architected/ai/responsible-ai). Measured figures carry
 their date and come from [evaluation.md](evaluation.md). **Status, 2026-10-31:** the question-to-answer flow and the evaluation gate
-are implemented and tested locally against the shared models. Sign-in, feedback and deletion come in phase 4 and the deployment in
-phase 7, so nothing here has run in staging or production yet.
+are implemented and tested locally against the shared models, and so are the API's sign-in boundary, feedback events and
+deletion (phase 4, with the Cosmos DB emulator). Easy Auth and the deployment come in phase 7, so nothing here has run in staging
+or production yet.
 
 ## 1. System information
 
@@ -73,10 +74,11 @@ phase 7, so nothing here has run in staging or production yet.
   - *Wrong refusal:* an answerable question is refused, or an unanswerable one answered. Measured by false and correct refusal.
 - **Misuse:**
   - Prompt injection asking the system to ignore its rules. Mitigated by Prompt Shields in the shared guardrail, retrieval decided by
-    code, verification by code, and the adversarial set with a canary (`ZEBRA-7731`). **Residual, measured on 2026-10-31:** with
-    prompt v2 the canary still appeared in about 1 of 15 adversarial cases, once in a claim and once in a refusal reason, in two
-    of five runs ([evaluation.md](evaluation.md)). The leaked text is inert, but it shows that the agents sometimes follow an
-    instruction written in the question.
+    code, verification by code, and the adversarial set with a canary (`ZEBRA-7731`). **Residual, measured on 2026-10-31:**
+    with prompt v2 the canary appeared in about 1 of 15 adversarial cases, once in a claim and once in a refusal reason. Prompt v3
+    (phase 4) removed both paths: *Counsel* reads only *Analyst*'s restatement, and a refusal carries a value from a fixed list. It
+    then appeared in 0 of 15 cases in each of two runs ([evaluation.md](evaluation.md)), a small sample that the gate keeps
+    measuring on every change.
   - A user pasting a client's identity into a question. The interface asks users not to (phase 5); questions are stored only in the
     firm's own Cosmos DB account for at most 90 days.
 - **Sensitive uses:** the output can affect a person's legal position, because a defence may rely on it. This is why every claim is
@@ -92,8 +94,7 @@ phase 7, so nothing here has run in staging or production yet.
   - the search service in Spain Central holds only the Code and processes the query text;
   - inference runs on Global Standard deployments, which may process outside the EU ([ADR-009](adr/009-inference-and-data-residency.md));
     Data Zone EU is the documented alternative.
-- **Evaluation data** is generated from the version store and listed in `eval/datasets/REVIEW.md` for the author to verify. No
-  metric is published as a result until the golden set is verified.
+- **Evaluation data** is generated from the version store, and the author verified every golden item on 2026-10-31.
 
 ## 5. Summary of impact
 

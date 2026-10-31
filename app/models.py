@@ -1,7 +1,7 @@
-from datetime import date
+from datetime import date, datetime
 from typing import Literal
 
-from pydantic import BaseModel, TypeAdapter
+from pydantic import BaseModel, Field, TypeAdapter
 
 
 class ArticleVersion(BaseModel):
@@ -35,9 +35,12 @@ class Citation(Reference):
     see_also: list[Reference]
 
 
+Scope = Literal["criminal_code", "case_law", "other_law", "not_legal"]
+
+
 class LegalQuery(BaseModel):
-    in_scope: bool
-    scope_reason: str
+    question: str
+    scope: Scope
     search_queries: list[str]
     facts_date: date | None
     language: str
@@ -76,4 +79,30 @@ class Answer(Outcome):
 
 class Refusal(Outcome):
     reason: Literal["out_of_scope", "no_evidence", "content_filter"]
-    detail: str = ""
+    scope: Scope | None = None
+
+
+class Turn(BaseModel):
+    id: str
+    question: str
+    asked: datetime
+    outcome: Answer | Refusal
+
+
+class ConversationSummary(BaseModel):
+    id: str
+    title: str
+    updated: datetime
+
+
+class Conversation(ConversationSummary):
+    turns: list[Turn]
+
+
+class Question(BaseModel):
+    question: str = Field(min_length=1, max_length=2000)
+
+
+class Feedback(BaseModel):
+    turn_id: str = Field(pattern=r"^[0-9a-f]{32}$")
+    value: Literal["up", "down", "copy"]

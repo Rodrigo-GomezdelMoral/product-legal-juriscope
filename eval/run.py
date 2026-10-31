@@ -15,14 +15,13 @@ from azure.core.credentials_async import AsyncTokenCredential
 from azure.core.exceptions import AzureError
 from azure.identity import DefaultAzureCredential as JudgeCredential
 from azure.identity.aio import DefaultAzureCredential
-from openai import APIError, APIStatusError
 
 from app.agents import EFFORT, chat_client
 from app.config import SharedBase
 from app.corpus import Corpus
 from app.models import Answer, Refusal
 from app.retrieval import Chunk, SearchRetriever
-from app.workflow import Juriscope
+from app.workflow import Juriscope, throttled
 from eval.evaluators import METRICS, Case, Observed, judge
 
 ROOT = Path(__file__).resolve().parent
@@ -78,12 +77,8 @@ class Runner:
         return await self.attempt(case, pauses[1:])
 
 
-def throttled(error: Exception) -> bool:
-    return isinstance(error.__cause__, APIError) and not isinstance(error.__cause__, APIStatusError)
-
-
 def item(case: Case, run: Observed) -> EvalItem:
-    text = run.outcome.text if isinstance(run.outcome, Answer) else f"{run.outcome.reason}: {run.outcome.detail}"
+    text = run.outcome.text if isinstance(run.outcome, Answer) else f"{run.outcome.reason}: {run.outcome.scope}"
     reply = Message("assistant", [text], additional_properties={"observed": run})
     return EvalItem([Message("user", [case.question]), reply], expected_output=case.model_dump_json())
 

@@ -17,7 +17,8 @@ behaviour silently.
   and `max_tokens` 800 for *Analyst* and 3,000 for *Counsel*, reasoning tokens included. Over 19 live answers the largest outputs
   were 488 and 1,293 tokens. The client has an explicit 60-second timeout; the OpenAI SDK keeps its default retries.
 - **Prompts** are files; a change is a new file and passes the gate. Phase 3 replaced `analyst_v1.md` and `counsel_v1.md` with
-  `analyst_v2.md` and `counsel_v2.md` after the gate's first run ([evaluation.md](../evaluation.md)).
+  `analyst_v2.md` and `counsel_v2.md` after the gate's first run, and phase 4 added `analyst_v3.md` and `counsel_v3.md`
+  (*Analyst* restates the question and types the scope; *Counsel* reads only the restatement) ([evaluation.md](../evaluation.md)).
 - **Replacement:** Microsoft names the replacement about 90 to 120 days before retirement (Learn, model lifecycle, 2026-07-24).
   The change is one deployment name in the settings, and it must pass the full evaluation suite against the baseline in
   `docs/evaluation.md`.

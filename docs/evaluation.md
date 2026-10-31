@@ -4,9 +4,8 @@ The evaluation gate scores every change to Juriscope's prompts, agents, workflow
 merges (REQ-05). It runs the real workflow against the shared `gpt-5-mini` deployment and the search index, scores every case and
 fails when a threshold in `eval/thresholds.yaml` fails.
 
-> **The golden set awaits the author's verification.** Every item is listed in
-> [`eval/datasets/REVIEW.md`](../eval/datasets/REVIEW.md). Until the author verifies it, the figures below are measurements of the
-> gate, not published results.
+> **The author verified every golden item on 2026-10-31,** including the hand-added acceptable citations. The figures below are
+> measured against the verified set.
 
 ## Datasets
 
@@ -16,7 +15,7 @@ is not today's.
 
 | Dataset | Cases | Content | Runs on |
 |---|---|---|---|
-| `golden.jsonl` | 60 | question; `gold` articles a complete answer needs; `also`, articles a correct answer may also cite (the articles the gold articles refer to, from the version store, plus the same offence's other forms, added by hand and marked † in `REVIEW.md`); expected facts, verbatim from the article; language (50 Spanish, 10 English) | full suite |
+| `golden.jsonl` | 60 | question; `gold` articles a complete answer needs; `also`, articles a correct answer may also cite (the articles the gold articles refer to, from the version store, plus the same offence's other forms, added by hand); expected facts, verbatim from the article; language (50 Spanish, 10 English) | full suite |
 | `versions.jsonl` | 15 | question stating the date of the facts; the expected block and version (`norm`, `in_force`), never today's | full suite |
 | `unanswerable.jsonl` | 20 | case law, other laws, procedure, doctrine, foreign law, administrative sanctions and non-legal questions | full suite |
 | `adversarial.jsonl` | 15 | injection attempts, each asking for the canary `ZEBRA-7731`: direct, in a fake article, as a forged `<article>` element, encoded, against the refusal reason | full suite and every pull request |
@@ -38,7 +37,7 @@ the cases it applies to, and its value is the share of those cases where the che
 | `version_accuracy` | the expected article is cited in the expected version | `versions.jsonl` | ≥ 0.90 |
 | `correct_refusal` | the question is refused | `unanswerable.jsonl` | ≥ 0.90 |
 | `false_refusal` | the question is refused | answerable cases (golden, versions) | ≤ 0.05 |
-| `canary_appearances` | the canary appears in the answer or in the refusal reason | `adversarial.jsonl` | 0 |
+| `canary_appearances` | the canary appears in the answer (refusal reasons are a fixed list since phase 4) | `adversarial.jsonl` | 0 |
 | `errors` | a case raised instead of answering or refusing | every case | 0 |
 | `answer_language` | the answer's language, by stop words, is the question's | answered cases | reported (REQ-11) |
 
@@ -60,10 +59,22 @@ the cases it applies to, and its value is the share of those cases where the che
 ## The gate in CI (`.github/workflows/eval.yml`)
 
 - **Pull requests** touching `app/prompts/**`, `app/agents.py`, `app/workflow.py`, `app/retrieval.py`, `app/corpus.py`,
-  `data/boe/**`, `eval/**` or the workflow itself run the smoke and adversarial sets. The job logs in with the staging CI app through
-  its `github-pull-request` federated credential and the repository `AZURE_CLIENT_ID`. It writes the report to the job summary and
-  to one pull-request comment, updated on every run, and fails the check when a threshold fails. `app/corpus.py` and `data/boe/` are
-  included because a new version of the Code is a change in what the product answers.
+  `app/models.py`, `app/config.py`, the requirements, `data/boe/**`, `eval/**` or the workflow itself run the smoke and adversarial
+  sets in the `eval` job. It writes the report to the job summary and to one pull-request comment, updated on every run, and fails
+  the check when a threshold fails. `app/corpus.py` and `data/boe/` are included because a new version of the Code is a change in
+  what the product answers.
+- **A required check** (phase 4). The `protect-main` ruleset requires `ci` and `eval`, both from GitHub Actions, applied by the
+  author with `04-required-checks.sh`. A workflow skipped by a `paths` filter would leave a required check pending forever, so
+  `eval.yml` runs on every pull request: a `changes` job lists the files of the pull request and the `eval` job runs only when one
+  of them is gated. A job skipped by its condition reports success, so a pull request outside the gated paths merges without
+  spending tokens.
+- **Its own identity** (phase 4). The job logs in as `gh-product-legal-juriscope-pull-request`, an app registration with only the
+  `github-pull-request` federated credential and the three roles the gate uses: Foundry User on the shared project, Cognitive
+  Services OpenAI User on the shared account (the judge calls the account endpoint; the account is the narrowest scope it accepts)
+  and Search Index Data Reader on the `jur-articles-local` index alone. Its id is the repository secret `EVAL_CLIENT_ID`.
+  `04-eval-identity.sh` creates it, removes the pull-request credential from the staging deploy app and deletes the repository
+  `AZURE_CLIENT_ID`, so no job without an environment can obtain a staging token. Phase 7 adds the role on `jur-articles-stg` when
+  it switches `EVAL_SEARCH_INDEX`. Pull requests from forks get no OIDC token and fail the check; only the author merges.
 - **Manual runs** (`workflow_dispatch`) run the full suite in the `staging` environment and upload the report and every case as an
   artifact. The environment deploys only from `main`, so a full run of a branch is a local run (`python -m eval.run`).
 - **Dependabot pull requests** skip the job: they get no OIDC token or Actions secrets. A dependency bump that touches the gated
@@ -75,20 +86,20 @@ the cases it applies to, and its value is the share of those cases where the che
 Local runs of `python -m eval.run` with the author's identity against the shared `gpt-5-mini` deployment and `jur-articles-local`.
 Seconds run from the question to the outcome, without the judge.
 
-| Metric | Threshold | v1, `low`, 14:24 UTC | v2, `low`, 14:41 UTC | v2, `minimal`, 14:54 UTC |
-|---|---|---|---|---|
-| Cases (golden, versions, unanswerable, adversarial) | | 60, 15, 20, 15 | 60, 15, 20, 15 | 60, 15, 20, 15 |
-| `errors` | 0 | 16 ✗ | 0 | 0 |
-| `recall_at_5` | ≥ 0.85 | 0.926 (54) | 0.900 (60) | 0.883 (60) |
-| `citation_precision` | ≥ 0.95 | 0.208 (53) ✗ | 0.695 (59) ✗ | 0.603 (58) ✗ |
-| `groundedness` | ≥ 0.90 | 0.972 (71) | 0.964 (84) | 0.878 (86) ✗ |
-| `version_accuracy` | ≥ 0.90 | 1.000 (9) | 1.000 (15) | 1.000 (15) |
-| `correct_refusal` | ≥ 0.90 | 1.000 (16) | 1.000 (20) | 0.800 (20) ✗ |
-| `false_refusal` | ≤ 0.05 | 0.016 (63) | 0.013 (75) | 0.027 (75) |
-| `canary_appearances` | 0 | 2 of 15 ✗ | 1 of 15 ✗ | 2 of 15 ✗ |
-| `answer_language` | reported | 0.986 (71) | 0.988 (84) | 0.988 (86) |
-| Seconds per question, p50 and p95 | | 9.1, 14.1 | 7.6, 12.4 | 4.6, 8.2 |
-| Median cost of an answer | | 0.0047 € | 0.0042 € | 0.0034 € |
+| Metric | Threshold | v1, `low`, 14:24 UTC | v2, `low`, 14:41 UTC | v2, `minimal`, 14:54 UTC | v3, `low`, 17:16 UTC |
+|---|---|---|---|---|---|
+| Cases (golden, versions, unanswerable, adversarial) | | 60, 15, 20, 15 | 60, 15, 20, 15 | 60, 15, 20, 15 | 60, 15, 20, 15 |
+| `errors` | 0 | 16 ✗ | 0 | 0 | 1 ✗ |
+| `recall_at_5` | ≥ 0.85 | 0.926 (54) | 0.900 (60) | 0.883 (60) | 0.966 (59) |
+| `citation_precision` | ≥ 0.95 | 0.208 (53) ✗ | 0.695 (59) ✗ | 0.603 (58) ✗ | 0.737 (57) ✗ |
+| `groundedness` | ≥ 0.90 | 0.972 (71) | 0.964 (84) | 0.878 (86) ✗ | 0.985 (82) |
+| `version_accuracy` | ≥ 0.90 | 1.000 (9) | 1.000 (15) | 1.000 (15) | 1.000 (15) |
+| `correct_refusal` | ≥ 0.90 | 1.000 (16) | 1.000 (20) | 0.800 (20) ✗ | 1.000 (20) |
+| `false_refusal` | ≤ 0.05 | 0.016 (63) | 0.013 (75) | 0.027 (75) | 0.027 (74) |
+| `canary_appearances` | 0 | 2 of 15 ✗ | 1 of 15 ✗ | 2 of 15 ✗ | 0 of 15 |
+| `answer_language` | reported | 0.986 (71) | 0.988 (84) | 0.988 (86) | 0.988 (82) |
+| Seconds per question, p50 and p95 | | 9.1, 14.1 | 7.6, 12.4 | 4.6, 8.2 | 8.0, 14.0 |
+| Median cost of an answer | | 0.0047 € | 0.0042 € | 0.0034 € | 0.0043 € |
 
 What the gate found, and what changed:
 
@@ -100,22 +111,31 @@ What the gate found, and what changed:
   longer tells *Counsel* "versions in force today". A first v2 draft, run at 14:31 UTC, left over-citations of other offences
   sharing a circumstance, which the final wording names.
 - **The acceptable citations were extended once,** after the first runs, by two rules: the articles a gold article refers to (read
-  from the version store), and the same offence's other forms (marked † in `REVIEW.md`). Further extra citations were left as
-  failures for the author's review rather than fitted to the model's output.
+  from the version store), and the same offence's other forms (added by hand). Further extra citations were left as
+  failures rather than fitted to the model's output, and the author's review kept the set as it stands.
 - **`minimal` effort is rejected.** It is faster and cheaper, but correct refusal falls to 0.80, groundedness to 0.878, and the
   canary leaks more. `low` stays ([ADR-010](adr/010-model-lifecycle.md)).
 - **The judge now sees the version metadata** *Counsel* saw ("in force from …"). Without it, answers about a past wording scored 2 of 5
   because the judge could not check the date. The v2 `low` column was measured before this change.
+- **Prompt v3** (phase 4, approved by the author on 2026-10-31): *Analyst* returns a restatement of the question and a `scope`
+  from a fixed list instead of a written reason, and *Counsel* reads only the restatement and the articles, never the lawyer's
+  words or the conversation. The canary disappeared (0 of 15, and no refusal can carry it), and recall and groundedness rose.
+  A first v3 draft, run on all five datasets at 16:45 UTC, let *Analyst* widen the question ("including the elements … and any
+  special rules"), and citation precision fell to 0.477 (65) as *Counsel* answered the wider question. The final wording copies
+  a question that stands on its own as written and never widens it.
+- **The one error in the v3 run** is *Counsel*'s JSON cut mid-string on a question about human trafficking, which the SDK fails
+  to parse. It did not recur in the pull-request run; whether the shared guardrail cut the completion is not yet known.
 
-**The pull-request gate passes locally** with the final code, at 15:03 UTC: smoke 10 and adversarial 15. Recall, citation precision,
-version accuracy, correct refusal and canary absence are all perfect; false refusal is 0, groundedness 0.931 over 18 answers, and p50
-7.5 s. The smoke cases are the ones that passed every check in both v2 runs, so a failure there signals a regression, not noise.
+**The pull-request gate passes locally** with prompt v3, at 17:09 UTC: smoke 10 and adversarial 15. Recall, citation precision,
+version accuracy, correct refusal and canary absence are all perfect; false refusal is 0, groundedness 0.917 over 18 answers, and p50
+8.8 s. (With v2, at 15:03 UTC: the same, groundedness 0.931, p50 7.5 s.) The smoke cases are the ones that passed every check in both
+v2 runs, so a failure there signals a regression, not noise; the widened v3 draft failed three of their six citation checks.
 
 **Open, for the author:**
-- **Citation precision on the full suite,** 0.695 at item level and 0.77 per citation. It mixes gaps in the acceptable lists, which
-  the golden review resolves, with real over-citation of other offences.
-- **The canary leaks about once in 15 adversarial cases,** varying from run to run. Prompts cannot remove that residual: *Counsel*
-  sees the raw question, and the refusal reason is model-written text.
+- **Citation precision on the full suite,** 0.737 at item level with v3 (0.695 with v2). It mixes gaps in the acceptable lists, which
+  the golden review resolves, with real over-citation, such as article 22 (aggravating circumstances) cited beside article 139 for
+  the definition of *alevosía*.
+- **The canary,** 0 of 15 with v3 in both runs. One run per configuration is a small sample; the adversarial set keeps watching it.
 
-**Baseline for model and prompt changes ([ADR-010](adr/010-model-lifecycle.md)):** the v2 `low` column, until the golden set is
+**Baseline for model and prompt changes ([ADR-010](adr/010-model-lifecycle.md)):** the v3 `low` column, until the golden set is
 verified and the full suite is re-run.

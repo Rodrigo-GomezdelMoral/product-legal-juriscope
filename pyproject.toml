@@ -12,7 +12,7 @@ strict = true
 explicit_package_bases = true
 namespace_packages = true
 plugins = ["pydantic.mypy"]
-untyped_calls_exclude = ["azure.ai.evaluation"]
+untyped_calls_exclude = ["azure.ai.evaluation", "azure.cosmos.exceptions"]
 files = ["."]
 exclude = ["^\\.venv/", "^web/"]
 
