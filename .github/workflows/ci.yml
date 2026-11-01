@@ -26,3 +26,26 @@ jobs:
       - run: make install
       - name: Lint, format, types, tests and budget
         run: make check
+      - uses: actions/setup-node@v7
+        with:
+          node-version: "24"
+          cache: npm
+          cache-dependency-path: web/package-lock.json
+      - name: Web type-check and build, then the demo build without a backend
+        working-directory: web
+        env:
+          CHROMEDRIVER_SKIP_DOWNLOAD: "true"
+        run: |
+          npm ci
+          npm run build
+          VITE_DEMO_MODE=true npx vite build
+      - name: Accessibility of the demo, empty state and every recorded run
+        working-directory: web
+        run: |
+          npx vite preview --port 4173 --strictPort &
+          timeout 60 bash -c 'until curl -sf http://localhost:4173/ > /dev/null; do sleep 1; done'
+          runs=$(for run in fixtures/*.json; do echo "http://localhost:4173/?run=$(basename "$run" .json)"; done)
+          npx axe http://localhost:4173/ $runs --tags wcag2a,wcag2aa,wcag21a,wcag21aa,wcag22aa \
+            --load-delay 25000 --chromedriver-path "$CHROMEWEBDRIVER/chromedriver" --exit
+          npx axe "http://localhost:4173/?run=s1" --tags wcag2a,wcag2aa,wcag21a,wcag21aa,wcag22aa \
+            --load-delay 3000 --chromedriver-path "$CHROMEWEBDRIVER/chromedriver" --exit

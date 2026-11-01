@@ -1,0 +1,108 @@
+{
+ "id": "s1",
+ "title": "Reckless homicide, with the full articles",
+ "recorded": "2026-11-01",
+ "meta": {
+  "updated": "2026-04-09",
+  "chat_model": "gpt-5-mini",
+  "embedding_model": "text-embedding-3-small",
+  "notice": "Basado en datos de la Agencia Estatal Boletín Oficial del Estado. Texto consolidado de carácter meramente informativo."
+ },
+ "turns": [
+  {
+   "question": "What is the penalty for reckless homicide?",
+   "events": [
+    {
+     "event": "phase",
+     "data": {
+      "step": "analysing",
+      "articles": null
+     },
+     "at": 4688
+    },
+    {
+     "event": "phase",
+     "data": {
+      "step": "searching",
+      "articles": null
+     },
+     "at": 4688
+    },
+    {
+     "event": "phase",
+     "data": {
+      "step": "reading",
+      "articles": 10
+     },
+     "at": 5407
+    },
+    {
+     "event": "phase",
+     "data": {
+      "step": "drafting",
+      "articles": null
+     },
+     "at": 5422
+    },
+    {
+     "event": "phase",
+     "data": {
+      "step": "verifying",
+      "articles": null
+     },
+     "at": 10329
+    },
+    {
+     "event": "answer",
+     "data": {
+      "conversation_id": "s1",
+      "turn": {
+       "id": "s1-1",
+       "question": "What is the penalty for reckless homicide?",
+       "asked": "2026-11-01T09:50:57.682060Z",
+       "outcome": {
+        "usage": {
+         "analyze_input": 884,
+         "analyze_output": 220,
+         "searches": 1,
+         "draft_input": 2490,
+         "draft_output": 647
+        },
+        "cost_eur": 0.004028,
+        "text": "If, by gross negligence (imprudencia grave), one causes the death of another, the offender shall be punished with imprisonment of one to four years. [1]\n\nIf that negligent homicide is committed using a motor vehicle or moped, the court shall also impose deprivation of the right to drive motor vehicles and mopeds for one to six years. [1]\n\nIf the negligent homicide is committed using a firearm, the court shall also impose deprivation of the right to carry or possess firearms for one to six years. [1]\n\nIf the homicide is caused by professional negligence, the court shall also impose special disqualification for the exercise of the profession, trade or office for a period of three to six years. [1]\n\nIf, by less serious negligence (imprudencia menos grave), one causes the death of another, the offender shall be punished with a fine of three months to eighteen months. [1]\n\nIf that less serious negligent homicide is committed using a motor vehicle or moped, the court shall also impose deprivation of the right to drive motor vehicles and mopeds for three to eighteen months; if committed using a firearm, the court may also impose deprivation of the right to carry or possess firearms for three to eighteen months. [1]\n\nExcept when the less-serious negligent homicide is committed using a motor vehicle or moped, the offence provided in this subsection is only prosecutable upon complaint by the injured person or their legal representative. [1]",
+        "citations": [
+         {
+          "block_id": "a142",
+          "title": "Artículo 142",
+          "url": "https://www.boe.es/buscar/act.php?id=BOE-A-1995-25444#a142",
+          "version": {
+           "norm": "BOE-A-2022-14965",
+           "published": "2022-09-14",
+           "in_force": "2022-09-15",
+           "text": "1. El que por imprudencia grave causare la muerte de otro, será castigado, como reo de homicidio imprudente, con la pena de prisión de uno a cuatro años.\nSi el homicidio imprudente se hubiera cometido utilizando un vehículo a motor o un ciclomotor, se impondrá asimismo la pena de privación del derecho a conducir vehículos a motor y ciclomotores de uno a seis años. A los efectos de este apartado, se reputará en todo caso como imprudencia grave la conducción en la que la concurrencia de alguna de las circunstancias previstas en el artículo 379 determinara la producción del hecho.\nSi el homicidio imprudente se hubiera cometido utilizando un arma de fuego, se impondrá también la pena de privación del derecho al porte o tenencia de armas por tiempo de uno a seis años.\nSi el homicidio se hubiera cometido por imprudencia profesional, se impondrá además la pena de inhabilitación especial para el ejercicio de la profesión, oficio o cargo por un periodo de tres a seis años.\n2. El que por imprudencia menos grave causare la muerte de otro, será castigado con la pena de multa de tres meses a dieciocho meses.\nSi el homicidio se hubiera cometido utilizando un vehículo a motor o un ciclomotor, se impondrá también la pena de privación del derecho a conducir vehículos a motor y ciclomotores de tres a dieciocho meses. Se reputará en todo caso como imprudencia menos grave aquella no calificada como grave en la que para la producción del hecho haya sido determinante la comisión de alguna de las infracciones graves de las normas de tráfico, circulación de vehículos a motor y seguridad vial. La valoración sobre la existencia o no de la determinación deberá apreciarse en resolución motivada.\nSi el homicidio se hubiera cometido utilizando un arma de fuego, se podrá imponer también la pena de privación del derecho al porte o tenencia de armas por tiempo de tres a dieciocho meses.\nSalvo en los casos en que se produzca utilizando un vehículo a motor o un ciclomotor, el delito previsto en este apartado solo será perseguible mediante denuncia de la persona agraviada o de su representante legal.",
+           "note": "Se modifican los párrafos segundo y cuarto del apartado 2 por el art. único.1 de la Ley Orgánica 11/2022, de 13 de septiembre. Ref. BOE-A-2022-14965#au"
+          },
+          "current": null,
+          "repealed": null,
+          "see_also": [
+           {
+            "block_id": "a379",
+            "title": "Artículo 379",
+            "url": "https://www.boe.es/buscar/act.php?id=BOE-A-1995-25444#a379"
+           }
+          ]
+         }
+        ],
+        "claims": 7,
+        "dropped_claims": 0,
+        "language": "en",
+        "facts_date": null
+       }
+      }
+     },
+     "at": 10360
+    }
+   ]
+  }
+ ]
+}

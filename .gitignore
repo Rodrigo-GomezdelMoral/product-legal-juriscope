@@ -221,3 +221,6 @@ __marimo__/
 
 # Evaluation results
 eval/results/
+
+# Web client
+node_modules/

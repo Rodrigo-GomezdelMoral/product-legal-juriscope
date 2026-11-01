@@ -1,0 +1,47 @@
+{
+ "id": "s3",
+ "title": "Case-law question, refused",
+ "recorded": "2026-11-01",
+ "meta": {
+  "updated": "2026-04-09",
+  "chat_model": "gpt-5-mini",
+  "embedding_model": "text-embedding-3-small",
+  "notice": "Basado en datos de la Agencia Estatal Boletín Oficial del Estado. Texto consolidado de carácter meramente informativo."
+ },
+ "turns": [
+  {
+   "question": "¿Qué ha dicho el Tribunal Supremo sobre la legítima defensa putativa?",
+   "events": [
+    {
+     "event": "phase",
+     "data": {
+      "step": "analysing",
+      "articles": null
+     },
+     "at": 2000
+    },
+    {
+     "event": "refusal",
+     "data": {
+      "conversation_id": "s3",
+      "turn": {
+       "id": "s3-1",
+       "question": "¿Qué ha dicho el Tribunal Supremo sobre la legítima defensa putativa?",
+       "asked": "2026-11-01T09:51:16.564260Z",
+       "outcome": {
+        "usage": {
+         "analyze_input": 890,
+         "analyze_output": 230
+        },
+        "cost_eur": 0.000601,
+        "reason": "out_of_scope",
+        "scope": "case_law"
+       }
+      }
+     },
+     "at": 2031
+    }
+   ]
+  }
+ ]
+}

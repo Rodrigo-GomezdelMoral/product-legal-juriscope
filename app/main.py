@@ -17,6 +17,7 @@ from fastapi import Depends, FastAPI, HTTPException, Path, Request
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
 from fastapi.sse import EventSourceResponse, ServerSentEvent
+from fastapi.staticfiles import StaticFiles
 from openai import APIStatusError
 from opentelemetry import trace
 from opentelemetry.trace import StatusCode
@@ -246,3 +247,7 @@ async def ask(asking: Annotated[Asking, Depends(start)], using: Using) -> AsyncI
             yield ServerSentEvent(event=kind, data={"conversation_id": asking.conversation_id, "turn": turn})
     except FAILURES as error:
         yield ServerSentEvent(event="error", data=failure(error))
+
+
+if (WEB := DATA.parents[1] / "web" / "dist").is_dir():
+    app.mount("/", StaticFiles(directory=WEB, html=True), name="web")
