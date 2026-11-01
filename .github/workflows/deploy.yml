@@ -1,0 +1,136 @@
+name: deploy
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+    inputs:
+      digest:
+        description: Digest (sha256:...) to redeploy to staging, for a rollback; empty builds the current commit
+        required: false
+        default: ""
+
+permissions:
+  contents: read
+
+concurrency:
+  group: staging
+  cancel-in-progress: false
+
+jobs:
+  staging:
+    if: vars.DEPLOY_ENABLED == 'true' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 60
+    environment: staging
+    permissions:
+      contents: read
+      id-token: write
+    env:
+      RG: rg-juriscope-stg-swc
+      APP: ca-juriscope-stg-spc
+      PARAMS: infra/main.staging.bicepparam
+      REGISTRY_LOGIN_SERVER: ${{ vars.REGISTRY_LOGIN_SERVER }}
+      FOUNDRY_PROJECT_ENDPOINT: ${{ vars.FOUNDRY_PROJECT_ENDPOINT }}
+      FOUNDRY_ACCOUNT_ENDPOINT: ${{ vars.FOUNDRY_ACCOUNT_ENDPOINT }}
+      SEARCH_ENDPOINT: ${{ vars.SEARCH_ENDPOINT }}
+      SEARCH_INDEX: jur-articles-stg
+      CHAT_MODEL: ${{ vars.CHAT_MODEL }}
+      EMBEDDING_MODEL: ${{ vars.EMBEDDING_MODEL }}
+      AUTH_CLIENT_ID: ${{ vars.AUTH_CLIENT_ID }}
+      AUTH_CLIENT_SECRET: ${{ secrets.AUTH_CLIENT_SECRET }}
+      ALERT_EMAIL_ADDRESS: ${{ secrets.ALERT_EMAIL_ADDRESS }}
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - uses: azure/login@v3
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+      - name: Tag the image with the date, the branch and the commit
+        id: tag
+        run: echo "tag=$(date -u +%Y%m%d)-main-${GITHUB_SHA::7}" >> "$GITHUB_OUTPUT"
+      - uses: docker/setup-buildx-action@v4
+        if: inputs.digest == ''
+      - name: Sign in to the shared registry with the staging identity
+        if: inputs.digest == ''
+        run: az acr login --name "${REGISTRY_LOGIN_SERVER%%.*}" --only-show-errors
+      - id: build
+        if: inputs.digest == ''
+        uses: docker/build-push-action@v7
+        with:
+          context: .
+          push: true
+          provenance: false
+          tags: ${{ vars.REGISTRY_LOGIN_SERVER }}/product-legal-juriscope:${{ steps.tag.outputs.tag }}
+      - name: What-if, then deploy the digest as a new revision behind the canary label
+        env:
+          IMAGE_DIGEST: ${{ inputs.digest || steps.build.outputs.digest }}
+        run: |
+          test -n "$IMAGE_DIGEST"
+          az config set extension.use_dynamic_install=yes_without_prompt --only-show-errors
+          stable=""
+          if az containerapp show -n "$APP" -g "$RG" -o none 2>/dev/null; then
+            stable="$(az containerapp revision list -n "$APP" -g "$RG" --query "[?properties.trafficWeight > \`0\`].name | [0]" -o tsv)"
+          fi
+          export STABLE_REVISION="$stable" REVISION_SUFFIX="r$GITHUB_RUN_NUMBER-$GITHUB_RUN_ATTEMPT"
+          az deployment group what-if -g "$RG" -p "$PARAMS" --result-format ResourceIdOnly --only-show-errors
+          out="$(az deployment group create -g "$RG" -n "juriscope-$REVISION_SUFFIX" -p "$PARAMS" --query properties.outputs -o json --only-show-errors)"
+          fqdn="$(jq -r .fqdn.value <<< "$out")"
+          echo "::add-mask::$fqdn"
+          echo "::add-mask::${fqdn#*.}"
+          {
+            echo "IMAGE_DIGEST=$IMAGE_DIGEST"; echo "STABLE_REVISION=$stable"; echo "FQDN=$fqdn"
+            echo "NEW=$(jq -r .revision.value <<< "$out")"; echo "CORPUS_ACCOUNT_URL=$(jq -r .corpusAccountUrl.value <<< "$out")"
+            echo "STORAGE_ID=$(jq -r .storageId.value <<< "$out")"
+          } >> "$GITHUB_ENV"
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: requirements*.txt
+      - run: python -m pip install --quiet -r requirements-dev.txt
+      - name: Sign in again, since the federated token expires after minutes
+        uses: azure/login@v3
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+      - name: Corpus parts and the Layout index, a no-op when the PDF has not changed, retried while new roles propagate
+        run: |
+          for attempt in 1 2 3; do
+            python -m ops.corpus --account-url "$CORPUS_ACCOUNT_URL" && python -m ops.index --target staging --storage-id "$STORAGE_ID" && exit 0
+            sleep 300
+          done
+          exit 1
+      - name: Health check on the canary label, then all traffic to the new revision
+        run: |
+          curl -fsS -o /dev/null --retry 18 --retry-delay 10 --retry-all-errors "https://$APP---canary.${FQDN#*.}/healthz"
+          if [ -n "$STABLE_REVISION" ] && [ "$STABLE_REVISION" != "$NEW" ]; then
+            az containerapp ingress traffic set -n "$APP" -g "$RG" --revision-weight "$NEW=100" "$STABLE_REVISION=0" -o none
+            az containerapp revision deactivate -n "$APP" -g "$RG" --revision "$STABLE_REVISION" -o none
+          fi
+      - name: Sign in again before the smoke test
+        uses: azure/login@v3
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+      - name: Smoke test as the staging CI principal, which holds Juriscope.User
+        run: |
+          token="$(az account get-access-token --resource "api://$AUTH_CLIENT_ID" --query accessToken -o tsv)"
+          echo "::add-mask::$token"
+          curl -fsS -o /dev/null -w "/healthz %{http_code} %{time_total} s\n" "https://$FQDN/healthz"
+          curl -fsS -o /dev/null -w "/api/meta %{http_code} %{time_total} s\n" -H "Authorization: Bearer $token" "https://$FQDN/api/meta"
+          test "$(curl -s -o /dev/null -w '%{http_code}' "https://$FQDN/api/me")" = "401"
+      - name: Record the digest staging received, for the release to promote
+        run: |
+          echo "$IMAGE_DIGEST" > digest.txt
+          echo "Deployed to staging: \`$IMAGE_DIGEST\` (${{ steps.tag.outputs.tag }}), revision \`${NEW##*--}\`" >> "$GITHUB_STEP_SUMMARY"
+      - uses: actions/upload-artifact@v7
+        with:
+          name: image-${{ github.sha }}
+          path: digest.txt
+          retention-days: 90

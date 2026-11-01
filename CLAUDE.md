@@ -109,14 +109,17 @@ phase closes and how each will be demonstrated (a test and, from phase 7, a live
   - **Settings:** `01-azure.sh` brings it to the landing-zone template's settings: system identity, roles only, semantic ranker on
     standard, shared tags, logs to the shared workspace, and Cognitive Services User and OpenAI User for its identity on Foundry.
   - **What spaincentral changes:** the region has no AI enrichment of its own, so built-in skills rely on keyless billing. There are
-    no higher-capacity partitions (2 GB, 1 GB of vectors, 15 indexes, shared by P05 to P08). Every search call crosses regions from
-    `swedencentral`.
+    no higher-capacity partitions (2 GB, 1 GB of vectors, 15 indexes, shared by P05 to P08). Since 2026-11-01 the app runs in `spaincentral` too, so
+    search calls stay in the region and model, Cosmos DB, Key Vault and telemetry calls cross to `swedencentral`.
   - **Phase 2** starts with the build prompt's search precheck; if any check fails, it stops and reports.
 - **Quotas:** Cosmos DB region access in `swedencentral` allowed, no accounts yet; no Key Vaults, active or soft-deleted; storage
   accounts 0 of 250 in the region; the global names `kv-juriscope-*`, `stjuriscope*` and `cosmos-juriscope-*` are available.
-  **Container Apps managed environments: 15** in `swedencentral`, 0 used. Each product has one environment per stage, all in
-  `swedencentral`: `cae-juriscope-stg-swc` and `cae-juriscope-prod-swc`. Nothing is shared and no other region is used.
-  Consumption cores are a per-environment quota, readable only once an environment exists.
+  **Container Apps managed environments:** the "15" read in phase 0 was wrong; the ARM usages API gives a limit of **1** in
+  `swedencentral`, already used by another product. **The author moved Juriscope's Container Apps to `spaincentral` on
+  2026-11-01:** `cae-juriscope-stg-spc` and `ca-juriscope-stg-spc`, `cae-juriscope-prod-spc` and `ca-juriscope-prod-spc`. Nothing
+  else moves: Cosmos DB, Storage, Key Vault, Application Insights, the identities and the resource groups stay in `swedencentral`.
+  Phase 6 read `spaincentral` at 1 of 5 used (another product's staging), so Juriscope's two fit, but the other products' planned
+  environments there would fill it (5 of 5). Consumption cores are a per-environment quota, readable only once an environment exists.
 
 ## Decisions taken in phase 0
 
@@ -125,7 +128,7 @@ phase closes and how each will be demonstrated (a test and, from phase 7, a live
   tooling. This keeps `azure-ai-evaluation` and Locust out of the image. The whole set was installed together on Python 3.12 and
   `pip check` passed.
 - **Dependabot** watches `pip` (the `agent-framework-*` packages grouped, so the core and its integrations, which each require a
-  minimum `agent-framework-core`, move together) and `github-actions`. Phase 5 adds `npm` and phase 6 adds `docker`, in the same
+  minimum `agent-framework-core`, move together) and `github-actions`. Phase 5 added `npm` and phase 6 added `docker`, in the same
   change as the manifests they watch, so Dependabot never looks for a manifest that does not exist yet.
 - **CI** has one Python job that runs `make install` and `make check`. Phase 5 adds the web, demo build and axe job; phase 6 adds
   `bicep build` and `lint`.
@@ -358,6 +361,64 @@ phase closes and how each will be demonstrated (a test and, from phase 7, a live
   recorder failures leaving conversations behind, the auth header on the command line, a missing `web/dist`, the mid-stream axe
   pass, a rejected clipboard write, a stale `?run=` after *New chat*, and the empty search result. Left: focus is not returned to
   the menu button when Escape closes the drawer.
+
+## Decisions taken in phase 6
+
+- **Bicep** (`infra/`, 465 of 490 lines): `main.bicep` and four modules (`data`, `monitor`, `app`, `roles`), one parameter file per
+  environment reading the deploy values from the environment (`readEnvironmentVariable`).
+  - The runtime identity is `existing`; the Bicep reads the shared search service (its identity, for Storage Blob Data Reader on
+    `corpus`) and the workspace id only. The registry login server and the Foundry and search endpoints come from the repository
+    variables, so no CI identity needs a read role on the registry.
+  - Built-in role ids are written without hyphens in `modules/roles.bicep` (as in Folium), so the identifier scan stays strict
+    without an allowlist.
+  - API versions checked against the ARM provider listings and the Bicep 0.48.1 type index (linter `use-recent-api-versions` at 730
+    days): App 2026-07-01, DocumentDB 2026-03-15, Storage 2026-06-01, Key Vault 2026-02-01, Insights components 2020-02-02,
+    workbooks 2023-06-01, scheduled query rules 2026-03-01, metric alerts 2026-01-01, budgets 2026-06-01, action groups 2023-01-01.
+    Two `#disable-next-line use-recent-api-versions` directives remain: `diagnosticSettings@2021-05-01-preview` (the newest) and the
+    Application Insights daily cap, `components/pricingPlans@2017-10-01`.
+  - Container Apps logs go to the shared workspace through a diagnostic setting (`destination: azure-monitor`), not shared keys.
+  - Liveness is a TCP probe, so a Cosmos DB outage marks replicas not ready instead of restarting them.
+- **Easy Auth is `AllowAnonymous`; the app authorizes** (ADR-006). `RedirectToLoginPage` would answer an API call without a session
+  with a 302, not the 401 REQ-07 requires. The web client now sends a 401 to `/.auth/login/aad` (one line in `api.ts`).
+  Audiences are `api://<client id>` and the client id, issuer v2: **the phase 7 and 8 scripts must set the sign-in app's
+  `api.requestedAccessTokenVersion` to 2**, and **`08-production.sh` must give the production CI principal `Juriscope.User`**,
+  because `release.yml`'s smoke test calls `/api/meta`.
+- **`MODEL_DOUBLE=true`** (`Settings.model_double`) makes the app use `ModelDouble`; `load-test.yml` sets it on the `loadtest`
+  revision only.
+- **`ops/corpus.py`** splits at body headings (a whole line `LIBRO …` or `TÍTULO …`; the PDF's index lines carry dots and titles) and
+  starts at *TÍTULO PRELIMINAR*, leaving out the index and the preamble. Measured 2026-11-01: pages 11–117 (378,457 characters) and
+  118–207 (308,498); 459 of 459 `pypdf` chunks (2,000/500) map through `locate`. The PDF's SHA-256 is blob metadata: an unchanged PDF
+  uploads nothing.
+- **`ops/index.py --target staging|production`** writes the data source (search identity, blob soft-delete detection), the skillset
+  (Layout, split, embedding, index projections, `AIServicesByIdentity`) and the indexer, runs it and waits; implemented and
+  unit-checked only, first run in phase 7. It now reads `SharedBase`, so no Cosmos endpoint is needed.
+- **Image:** `docker build` on 2026-11-01 (369 MB, user 1000); the container with the emulator and the model double answered
+  `/healthz` 200, `/` 200 (the built web) and `/api/me` 401.
+- **Workflows:** `deploy.yml` (Buildx, `az acr login`, `what-if`, revision by digest, corpus and index, canary health check, smoke,
+  artifact `image-<sha>`), `release.yml` (artifact digest and `load-test` status, canary 10 % with an Application Insights check,
+  rollback), `load-test.yml`, `pages.yml`. Actions are pinned to majors only, because a SHA pin needs a `#` comment for its version.
+  The Bicep step is inside the `ci` job, so `04-required-checks.sh` need not run again. Dependabot watches `docker`.
+- **Cost in Spain Central** is about 42 % above Sweden Central for Container Apps. Production at rest is about 15.5 € a month, and the
+  all-in cost per question at 350 questions is 0.049 to 0.051 € against the 0.05 € SLO (`docs/cost.md`, ADR-008). Phase 7 measures
+  CPU and memory under load to decide whether 0.25 vCPU / 0.5 GiB is enough.
+- **`what-if` on 2026-11-01**, with the author's identity and placeholder secrets: both resource groups show 22 creates, the
+  existing identity ignored, and 4 role assignments `Unsupported` (their names depend on runtime principal ids). There were no
+  modifications and no deletions. Rerun after the review fixes: the same.
+- **Review:** an independent review (subagent) found 2 high, 4 medium and 4 low findings; all fixed:
+  - the projection read the embedding and the headings from the wrong skill output paths, so vectors and headings would have been
+    null;
+  - the canary check and smoke test ran after the federated token expired, so every release would have rolled back. They now have
+    their own sign-ins, and the smoke test runs on the canary label before promotion;
+  - the rollback now reactivates the previous revision;
+  - the load-test status names the digest it tested, and `release.yml` requires that digest;
+  - corpus and index are retried while new roles propagate;
+  - an extra sign-in in `load-test.yml`;
+  - the model names come from the repository variables in Bicep too;
+  - uvicorn keep-alive is 75 s, behind the Envoy pool;
+  - `deploy.yml` runs only from `main`.
+
+  Left for phase 7: the Key Vault role may not have propagated when the first revision resolves the secret; rerun the workflow,
+  or let `07-staging.sh` grant Key Vault Secrets User to the runtime identity in advance.
 
 ## Verified names (installed wheels, 2026-10-30)
 
