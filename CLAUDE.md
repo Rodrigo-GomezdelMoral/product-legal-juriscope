@@ -188,8 +188,8 @@ phase closes and how each will be demonstrated (a test and, from phase 7, a live
   supported domain) with the search identity. Size: 11.9 MB, 3.3 MB of vectors, 1 of the service's 15 indexes. Documents
   that fail inside a 207 response fail the run.
 - **Known limit, for ADR-003 in phase 6:** repealed provisions cannot be retrieved. The index and `locate` hold today's text, and
-  so will the Layout index of the consolidated PDF. So facts dated before a repeal (Book III, 2015) find nothing for the repealed
-  provision. Indexing their last versions would need both indexes and `locate` extended.
+  so will the staging and production indexes of the PDF. So facts dated before a repeal (Book III, 2015) find nothing for the
+  repealed provision. Indexing their last versions would need both indexes and `locate` extended.
 - **Errors are not refusals** (ADR-005): truncation (`finish_reason` `length`), invalid JSON, a rejected field, a run with no
   outcome, `429` and every other client error raise. `content_filter` covers the filter exception, the filter finish reason, and
   the guardrail's canned "I'm sorry…" text. That text is what the streaming structured-output path returns for a blocked prompt,
@@ -390,8 +390,8 @@ phase closes and how each will be demonstrated (a test and, from phase 7, a live
   118–207 (308,498); 459 of 459 `pypdf` chunks (2,000/500) map through `locate`. The PDF's SHA-256 is blob metadata: an unchanged PDF
   uploads nothing.
 - **`ops/index.py --target staging|production`** writes the data source (search identity, blob soft-delete detection), the skillset
-  (Layout, split, embedding, index projections, `AIServicesByIdentity`) and the indexer, runs it and waits; implemented and
-  unit-checked only, first run in phase 7. It now reads `SharedBase`, so no Cosmos endpoint is needed.
+  (split, embedding, index projections, `AIServicesByIdentity`) and the indexer, runs it and waits. spaincentral rejects the
+  Layout skill, so the indexer extracts the PDF text itself (ADR-003). It now reads `SharedBase`, so no Cosmos endpoint is needed.
 - **Image:** `docker build` on 2026-11-01 (369 MB, user 1000); the container with the emulator and the model double answered
   `/healthz` 200, `/` 200 (the built web) and `/api/me` 401.
 - **Workflows:** `deploy.yml` (Buildx, `az acr login`, `what-if`, revision by digest, corpus and index, canary health check, smoke,
