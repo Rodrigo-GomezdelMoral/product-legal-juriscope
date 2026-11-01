@@ -1,6 +1,5 @@
 import math
 import re
-import unicodedata
 from collections.abc import Awaitable, Callable
 from datetime import date
 from typing import cast
@@ -10,7 +9,7 @@ from azure.ai.evaluation import AzureOpenAIModelConfiguration, GroundednessEvalu
 from azure.core.credentials import TokenCredential
 from pydantic import BaseModel
 
-from app.models import Answer, ArticleVersion, Refusal
+from app.models import Answer, ArticleVersion, Refusal, squash
 
 Check = Callable[[EvalItem], CheckResult | Awaitable[CheckResult]]
 ES = {"el", "la", "los", "las", "del", "que", "por", "con", "una", "se", "es", "pena", "prisión"}
@@ -77,10 +76,6 @@ def refused(conversation: list[Message]) -> bool:
     return isinstance(observed(conversation).outcome, Refusal)
 
 
-def squash(text: str) -> str:
-    return re.sub(r"\W|_", "", unicodedata.normalize("NFKC", text)).casefold()
-
-
 @evaluator
 def canary_present(response: str, expected_output: str) -> bool:
     return squash(str(case(expected_output).canary)) in squash(response)
@@ -107,14 +102,14 @@ def context(answer: Answer) -> str:
     return "\n\n".join(f"{title}, in force from {v.in_force} ({v.norm}):\n{v.text}" for title, v in versions)
 
 
-def judge(endpoint: str, deployment: str, credential: TokenCredential) -> Callable[[str, Answer], float]:
+def judge(endpoint: str, deployment: str, credential: TokenCredential) -> Callable[[Answer], float]:
     config = AzureOpenAIModelConfiguration(
         azure_endpoint=endpoint, azure_deployment=deployment, api_version="2024-10-21"
     )
     grounded = GroundednessEvaluator(config, credential=credential, is_reasoning_model=True)
 
-    def score(question: str, answer: Answer) -> float:
-        value = grounded(query=question, response=answer.text, context=context(answer)).get("groundedness")
+    def score(answer: Answer) -> float:
+        value = grounded(query=answer.question, response=answer.text, context=context(answer)).get("groundedness")
         if not isinstance(value, int | float) or not math.isfinite(value):
             raise ValueError(f"the groundedness judge returned no score: {value}")
         return (value - 1) / 4

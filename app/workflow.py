@@ -17,6 +17,7 @@ from agent_framework import (
     WorkflowEvent,
 )
 from agent_framework.exceptions import ChatClientContentFilterException, ChatClientException
+from openai import APIError, RateLimitError
 from pydantic import BaseModel, ValidationError
 
 from app.agents import analyst, brief, counsel
@@ -32,20 +33,24 @@ HISTORY = 10
 Routing = WorkflowContext[AgentExecutorRequest | Refusal, PhaseEvent]
 
 
+class UnusableReplyError(ValueError):
+    pass
+
+
 def parsed[M: BaseModel](response: AgentExecutorResponse, model: type[M]) -> M | None:
     if (finish := response.agent_response.finish_reason) == FILTERED:
         return None
     if isinstance(value := response.agent_response.value, model):
         return value
-    raise ValueError(f"{response.executor_id} returned no {model.__name__} (finish reason {finish})")
+    raise UnusableReplyError(f"{response.executor_id} returned no {model.__name__} (finish reason {finish})")
 
 
 def in_scope(response: AgentExecutorResponse) -> bool:
-    return (query := parsed(response, LegalQuery)) is not None and query.in_scope
+    return (query := parsed(response, LegalQuery)) is not None and query.scope == "criminal_code"
 
 
-def compose(draft: Draft, query: LegalQuery, citations: dict[str, Citation]) -> Answer | None:
-    kept = [claim for claim in draft.claims if claim.article_ids and set(claim.article_ids) <= citations.keys()]
+def compose(draft: Draft, query: LegalQuery, citations: dict[str, Citation], known: frozenset[str]) -> Answer | None:
+    kept = [claim for claim in draft.claims if claim.verified(query, citations, known)]
     if not kept:
         return None
     order = list(dict.fromkeys(block_id for claim in kept for block_id in claim.article_ids))
@@ -55,14 +60,14 @@ def compose(draft: Draft, query: LegalQuery, citations: dict[str, Citation]) -> 
         citations=[citations[block_id] for block_id in order],
         claims=len(kept),
         dropped_claims=len(draft.claims) - len(kept),
-        language=query.language,
-        facts_date=query.facts_date,
+        **query.model_dump(include={"question", "language", "facts_date"}),
     )
 
 
 def retrieval(search: Retriever, corpus: Corpus) -> FunctionExecutor:
     async def retrieve(response: AgentExecutorResponse, ctx: Routing) -> None:
-        query = cast(LegalQuery, response.agent_response.value)
+        asked = next(message.text for message in reversed(response.full_conversation) if message.role == "user")
+        query = cast(LegalQuery, response.agent_response.value).within(asked)
         chunks = await search(query.search_queries) if query.search_queries else []
         found = dict.fromkeys(block_id for chunk in chunks for block_id in corpus.locate(chunk.content))
         citations = {block_id: citation for block_id in found if (citation := corpus.cite(block_id, query.facts_date))}
@@ -70,9 +75,8 @@ def retrieval(search: Retriever, corpus: Corpus) -> FunctionExecutor:
         if not citations:
             await ctx.send_message(Refusal(reason="no_evidence"))
             return
-        ctx.set_state("retrieved", (query, citations))
-        conversation = response.full_conversation[: -len(response.agent_response.messages) or None]
-        request = [*conversation, Message(role="user", contents=[brief(query, list(citations.values()))])]
+        ctx.set_state("retrieved", (query, citations, corpus.words))
+        request = [Message(role="user", contents=[brief(query, list(citations.values()))])]
         await ctx.send_message(AgentExecutorRequest(messages=request, should_respond=True))
 
     return FunctionExecutor(retrieve, id="retrieve")
@@ -89,7 +93,7 @@ async def verify(response: AgentExecutorResponse, ctx: WorkflowContext[Refusal, 
 async def refuse(message: AgentExecutorResponse | Refusal, ctx: WorkflowContext[Never, Refusal]) -> None:
     if isinstance(message, AgentExecutorResponse):
         query = parsed(message, LegalQuery)
-        message = Refusal(reason="out_of_scope", detail=query.scope_reason) if query else Refusal(reason=FILTERED)
+        message = Refusal(reason="out_of_scope", scope=query.scope) if query else Refusal(reason=FILTERED)
     await ctx.yield_output(message)
 
 
@@ -125,6 +129,11 @@ def declined(error: ChatClientException) -> bool:
     return isinstance(error, ChatClientContentFilterException) or prose
 
 
+def throttled(error: BaseException) -> bool:
+    cause = error.__cause__
+    return isinstance(cause, RateLimitError) or type(cause) is APIError
+
+
 def transcript(answer: Answer) -> Message:
     sources = "; ".join(f"[{number}] {citation.title}" for number, citation in enumerate(answer.citations, 1))
     return Message(role="assistant", contents=[f"{answer.text}\n\nSources: {sources}"])
@@ -158,8 +167,8 @@ class Juriscope:
                 raise
             outcome = Refusal(reason=FILTERED)
         if outcome is None:
-            raise RuntimeError("the workflow ended without an answer or a refusal")
+            raise UnusableReplyError("the workflow ended without an answer or a refusal")
         outcome = outcome.model_copy(update={"usage": usage, "cost_eur": cost_eur(self.model, usage)})
+        yield outcome
         if isinstance(outcome, Answer):
             await self.history.save_messages(session_id, [asked, transcript(outcome)])
-        yield outcome

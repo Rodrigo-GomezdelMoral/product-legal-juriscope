@@ -26,6 +26,7 @@ class SharedBase(BaseSettings):
 class Settings(SharedBase):
     cosmos_endpoint: str
     cosmos_database: str = "juriscope"
+    cosmos_key: str | None = None
 
 
 def cost_eur(model: str, usage: dict[str, int]) -> float:

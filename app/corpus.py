@@ -4,7 +4,7 @@ import re
 from datetime import date
 from pathlib import Path
 
-from app.models import ARTICLES, Article, ArticleVersion, Citation, Reference
+from app.models import ARTICLES, Article, ArticleVersion, Citation, Reference, words
 
 DATA = Path(__file__).resolve().parent.parent / "data" / "boe"
 OFFICIAL = "https://www.boe.es/buscar/act.php?id=BOE-A-1995-25444#"
@@ -30,6 +30,7 @@ class Corpus:
         self.ids = [block_id for block_id, version in current.items() if version]
         self.starts = list(itertools.accumulate([len(part) + 1 for part in parts[:-1]], initial=1))
         self.text = f" {' '.join(parts)} "
+        self.words = frozenset(w for a in articles for v in a.versions for w in words(f"{a.title} {v.text}"))
 
     @classmethod
     def load(cls) -> "Corpus":

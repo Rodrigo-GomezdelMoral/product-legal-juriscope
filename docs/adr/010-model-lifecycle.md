@@ -14,10 +14,28 @@ behaviour silently.
   and its vectorizer, all Global Standard. Retirement dates read from the Models API on 2026-10-31: **2027-02-09** for
   `gpt-5-mini` and **2028-02-09** for the embeddings.
 - **Settings** (`app/agents.py`): `reasoning.effort` `low`, no temperature or `top_p` (reasoning models reject them), `store: False`,
-  and `max_tokens` 800 for *Analyst* and 3,000 for *Counsel*, reasoning tokens included. Over 19 live answers the largest outputs
-  were 488 and 1,293 tokens. The client has an explicit 60-second timeout; the OpenAI SDK keeps its default retries.
+  and `max_tokens` 1,600 for *Analyst* and 4,000 for *Counsel*, reasoning tokens included. Over 19 live answers the largest outputs
+  were 488 and 1,293 tokens. Until 2026-10-31 the caps were 800 and 3,000: *Analyst*'s JSON was cut mid-string on a case-law
+  question in a pull-request run of `analyst_v4.md`, which adds the `left_out` field, and *Counsel*'s on three questions of
+  one full run (trafficking, bribery, homicide in 2012). Only the tokens produced are billed, and the deployment's token
+  counter deducts the prompt only, so the higher caps cost nothing unless they are used. The client has an explicit 60-second
+  timeout; the OpenAI SDK keeps its default retries.
 - **Prompts** are files; a change is a new file and passes the gate. Phase 3 replaced `analyst_v1.md` and `counsel_v1.md` with
-  `analyst_v2.md` and `counsel_v2.md` after the gate's first run ([evaluation.md](../evaluation.md)).
+  `analyst_v2.md` and `counsel_v2.md` after the gate's first run, and phase 4 added `analyst_v3.md` and `counsel_v3.md`
+  (*Analyst* restates the question and types the scope; *Counsel* reads only the restatement). `counsel_v4.md` followed in
+  phase 4, when the required `eval` check failed on over-citation: *Counsel* chooses the fewest articles that answer the
+  question before it writes, and leaves out other offences, other forms and general rules the question does not ask about
+  ([evaluation.md](../evaluation.md)). `analyst_v4.md` followed when the canary leaked through a restatement that copied the
+  whole question: *Analyst* lists in `left_out` every passage that is not the legal question, and code keeps those passages
+  out of the restatement and out of the answer ([ADR-005](005-structured-output-and-verification.md)). `analyst_v5.md`
+  followed the same day, when a full run showed *Analyst* v4 sometimes copying its own instructions into `left_out`: only the
+  lawyer's latest message goes there, never the instructions, earlier turns or the legal question. Its full run (23:24 UTC)
+  passes every threshold and is the new baseline.
+- **The groundedness judge reads *Analyst*'s restatement** (2026-10-31), not the raw question, because *Counsel* answers the
+  restatement and an adversarial question carries an injection the drafter never sees: with the raw question, the judge scored
+  faithful answers 4 of 5 for not following it, and pull-request runs of the same prompts swung across the 0.90 line. Groundedness
+  measured before that date used the raw question, so a comparison with the baseline uses figures measured the same way
+  ([evaluation.md](../evaluation.md)).
 - **Replacement:** Microsoft names the replacement about 90 to 120 days before retirement (Learn, model lifecycle, 2026-07-24).
   The change is one deployment name in the settings, and it must pass the full evaluation suite against the baseline in
   `docs/evaluation.md`.

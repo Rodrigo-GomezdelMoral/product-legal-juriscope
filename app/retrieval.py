@@ -1,6 +1,7 @@
 from collections.abc import Awaitable, Callable
 
 from azure.core.credentials_async import AsyncTokenCredential
+from azure.core.exceptions import AzureError
 from azure.search.documents.aio import SearchClient
 from azure.search.documents.models import VectorizableTextQuery
 from pydantic import BaseModel
@@ -17,6 +18,10 @@ class Chunk(BaseModel):
     reranker_score: float | None
 
 
+class SearchUnavailableError(AzureError):
+    pass
+
+
 Retriever = Callable[[list[str]], Awaitable[list[Chunk]]]
 
 
@@ -25,6 +30,12 @@ class SearchRetriever:
         self.client = SearchClient(endpoint, index, credential, connection_timeout=5, read_timeout=20)
 
     async def search(self, queries: list[str]) -> list[Chunk]:
+        try:
+            return await self.query(queries)
+        except AzureError as error:
+            raise SearchUnavailableError(str(error)) from error
+
+    async def query(self, queries: list[str]) -> list[Chunk]:
         vectors = [VectorizableTextQuery(text=q, k_nearest_neighbors=CANDIDATES, fields=VECTOR) for q in queries]
         results = await self.client.search(
             search_text=" ".join(queries),

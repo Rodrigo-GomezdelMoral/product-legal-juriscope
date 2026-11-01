@@ -5,8 +5,9 @@ Juriscope's impact assessment follows the sections of the
 (June 2022) and the responsible AI guidance of the
 [Well-Architected AI workload guide](https://learn.microsoft.com/azure/well-architected/ai/responsible-ai). Measured figures carry
 their date and come from [evaluation.md](evaluation.md). **Status, 2026-10-31:** the question-to-answer flow and the evaluation gate
-are implemented and tested locally against the shared models. Sign-in, feedback and deletion come in phase 4 and the deployment in
-phase 7, so nothing here has run in staging or production yet.
+are implemented and tested locally against the shared models, and so are the API's sign-in boundary, feedback events and
+deletion (phase 4, with the Cosmos DB emulator). Easy Auth and the deployment come in phase 7, so nothing here has run in staging
+or production yet.
 
 ## 1. System information
 
@@ -73,10 +74,17 @@ phase 7, so nothing here has run in staging or production yet.
   - *Wrong refusal:* an answerable question is refused, or an unanswerable one answered. Measured by false and correct refusal.
 - **Misuse:**
   - Prompt injection asking the system to ignore its rules. Mitigated by Prompt Shields in the shared guardrail, retrieval decided by
-    code, verification by code, and the adversarial set with a canary (`ZEBRA-7731`). **Residual, measured on 2026-10-31:** with
-    prompt v2 the canary still appeared in about 1 of 15 adversarial cases, once in a claim and once in a refusal reason, in two
-    of five runs ([evaluation.md](evaluation.md)). The leaked text is inert, but it shows that the agents sometimes follow an
-    instruction written in the question.
+    code, verification by code, and the adversarial set with a canary (`ZEBRA-7731`). **Residual, measured on 2026-10-31:**
+    with prompt v2 the canary appeared in about 1 of 15 adversarial cases, once in a claim and once in a refusal reason. Prompt v3
+    (phase 4) removed both paths: *Counsel* reads only *Analyst*'s restatement, and a refusal carries a value from a fixed list. It
+    then appeared in 0 of 15 cases in each of two runs ([evaluation.md](evaluation.md)), but in CI on 2026-10-31 it appeared
+    once (1 of 15): *Analyst* copied the whole question, instruction included, into its restatement, and *Counsel* wrote the
+    instruction's phrase into a claim. Since `analyst_v4.md` and `analyst_v5.md`, *Analyst* lists in `left_out` the passages of
+    the lawyer's message that are not the legal question; code removes them from the restatement and drops any claim that
+    repeats one (a run of eight letters or digits touching a word foreign to the Criminal Code). The canary then appeared in 0
+    of 15 cases in nine pull-request runs and two full runs. Residual: an encoded or spelled-out canary, or a code shorter
+    than eight characters, is stopped only if the restatement leaves the instruction out; and an English instruction that
+    literally contains a claim's wording can drop that true claim.
   - A user pasting a client's identity into a question. The interface asks users not to (phase 5); questions are stored only in the
     firm's own Cosmos DB account for at most 90 days.
 - **Sensitive uses:** the output can affect a person's legal position, because a defence may rely on it. This is why every claim is
@@ -92,8 +100,7 @@ phase 7, so nothing here has run in staging or production yet.
   - the search service in Spain Central holds only the Code and processes the query text;
   - inference runs on Global Standard deployments, which may process outside the EU ([ADR-009](adr/009-inference-and-data-residency.md));
     Data Zone EU is the documented alternative.
-- **Evaluation data** is generated from the version store and listed in `eval/datasets/REVIEW.md` for the author to verify. No
-  metric is published as a result until the golden set is verified.
+- **Evaluation data** is generated from the version store, and the author verified every golden item on 2026-10-31.
 
 ## 5. Summary of impact
 
@@ -103,7 +110,7 @@ phase 7, so nothing here has run in staging or production yet.
 | An outdated rule | version chosen by code from the BOE history; current version shown beside it | `test_version_at`, `test_facts_date_selects_version`; version accuracy in the gate |
 | An answer from model knowledge | out-of-scope and no-evidence refusals | `test_out_of_scope_refused_without_retrieval`, `test_no_evidence_refusal`; correct refusal in the gate |
 | Overreliance | full articles beside every answer; "not legal advice"; lawyer review; feedback (REQ-09) | phase 5 interface; phase 4 feedback events |
-| Injection | Prompt Shields; code decides retrieval and citations; canary | adversarial set, canary appearances 0 |
+| Injection | Prompt Shields; code decides retrieval and citations; code keeps *Analyst*'s `left_out` passages out of the restatement and the answer; canary | `test_injected_instructions_never_reach_the_answer`, `test_claims_drop_only_text_foreign_to_the_code`; adversarial set, canary appearances 0 |
 | Disclosure of client data | user partition, no text in telemetry, `store: False`, 90-day TTL, deletion | phase 4 tests; phase 7 live checks |
 
 The author holds the review and sign-off roles and signs off at release 1.0.0.

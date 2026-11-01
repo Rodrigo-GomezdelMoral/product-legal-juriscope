@@ -47,7 +47,9 @@ phase closes and how each will be demonstrated (a test and, from phase 7, a live
   The counts come from `make budget`.
 - **Identity is the author's.** App registrations, role assignments, federated credentials, GitHub secrets and variables go in
   `../_scripts/product-legal-juriscope/<nn>-<what>.sh`; write the script and stop. Written: `01-codeql.sh` (phase 1), `03-eval-variables.sh`
-  (phase 3). Planned: `07-staging.sh` (phase 7), `08-production.sh` (phase 8).
+  (phase 3), `04-eval-identity.sh` and `04-required-checks.sh` (phase 4). Planned: `07-staging.sh` (phase 7, which must also give
+  `gh-product-legal-juriscope-pull-request` Search Index Data Reader on `jur-articles-stg` when it switches `EVAL_SEARCH_INDEX`),
+  `08-production.sh` (phase 8).
 - **Azure only in phases 7 and 8.** Until then: local, the Cosmos DB emulator, Bicep `what-if`, and the shared model deployments and
   `jur-articles-local` index with the author's own identity. Before creating anything that bills by the hour, state its price and how
   it is switched off. Staging ends every deploying phase at zero replicas.
@@ -214,7 +216,7 @@ phase closes and how each will be demonstrated (a test and, from phase 7, a live
   `2024-10-21`). The judge's context carries each version's in-force date and norm.
 - **Item-level metrics:** recall counts a case only when every gold article is in the top five, and citation precision only when
   every citation is in `gold` or `also`. The `errors` threshold (0) is the one addition to the build prompt's table, and a missing
-  thresholded metric fails the gate. `eval/datasets/REVIEW.md` lists every item; **the golden set awaits the author.**
+  thresholded metric fails the gate. **The author verified every golden item on 2026-10-31.**
 - **Settings:** `SharedBase` holds the shared-base fields, so the gate and `chat_client` need no Cosmos endpoint; `Settings` adds
   Cosmos. In CI, `SEARCH_INDEX` comes from `vars.EVAL_SEARCH_INDEX`.
 - **Rate limits arrive inside the stream.** The shared deployment rejects a request with an in-stream error, which the SDK raises as a
@@ -243,6 +245,86 @@ phase closes and how each will be demonstrated (a test and, from phase 7, a live
 - **Python module limits:** `eval/run.py` is 118 non-blank lines against its 85. The throttling retry, host redaction and strict
   gate came from live findings and the review. `eval/evaluators.py` is at its 85.
 
+## Decisions taken in phase 4
+
+- **Decision A (approved 2026-10-31), prompts v3.** *Analyst* returns `question` (the lawyer's question, copied as written when it
+  stands on its own, resolved when it is a follow-up, never widened) and `scope` (`criminal_code`, `case_law`, `other_law`,
+  `not_legal`); *Counsel* receives one message with that question and the articles, never the conversation. `Refusal.scope`
+  replaces the free-text `detail`. A first draft let *Analyst* widen the question and citation precision fell to 0.477; the final
+  v3 measured, on the full suite, recall 0.966, citation precision 0.737 (v2 0.695), groundedness 0.985, canary 0 of 15, false
+  refusal 0.027, one error (*Counsel*'s JSON cut mid-string, not recurring). The PR suites pass (exit 0). v3 was the baseline until v4.
+- **Prompt `counsel_v4.md` (2026-10-31), the fix of the required `eval` check.** The PR gate failed on citation precision 0.833
+  (the self-defence smoke case cited more than article 20; probes: 21 and 118 in 2 of 4). Over-citation was systematic: true claims from articles the
+  question did not need (other offences, other forms or special cases, general rules such as sentencing, civil liability,
+  prosecution, legal persons). v4 makes *Counsel* choose the fewest articles that answer the question before writing and names
+  those kinds; *Analyst* v3, the brief and `compose` are unchanged (`compose` already cites only verified claims' articles).
+  Probe on v3's 15 full-suite failures: v3 5 precise, v4 14. Full suite 18:05 UTC: citation precision 1.000 (59), recall
+  0.933 (60, retrieval untouched), groundedness 0.973 (83), version 1.000, correct refusal 1.000, false refusal 0.013 (75),
+  canary 0 of 15, errors 0, p50 6.8 s, p95 11.6 s; the gate passes. PR suites, three runs: citation precision 1.000 (6) each;
+  exit 0 once, then groundedness 0.889 (the judge reads the raw adversarial question and scored a faithful coercion answer 4 of 5) and
+  one transient `APIConnectionError`, which the gate does not retry. Both are open for the author. v4 is the baseline.
+  `test_agents_run_the_latest_prompts` holds that each agent loads its newest prompt file, and
+  `test_counsel_chooses_the_fewest_articles` the v4 rule. Completeness is not measured (golden `facts` are not scored).
+- **Second fix of the required `eval` check (approved 2026-10-31): `analyst_v4.md`, `analyst_v5.md` and code.** CI failed on
+  groundedness 0.891 with one `APIConnectionError`, then on canary 1 of 15. Diagnosis (probe, 1 of 3): *Analyst* v3 copied the
+  whole question, injection included, into `question`; *Counsel* wrote the phrase into a claim; verification checked only
+  article ids. Fixes:
+  - `LegalQuery.left_out` lists the passages that are not the legal question. Validation removes them from `question`
+    (longest first, word boundaries, any spacing or quote style, passages under 4 characters skipped); an empty question
+    becomes `not_legal`. `language` is two lowercase letters, checked in code (Learn lists `pattern` as unsupported in
+    structured outputs).
+  - `Claim.verified` also drops a claim that shares an 8-character squashed run with a `left_out` passage when the run
+    touches a word in neither the Code (`Corpus.words`, every version and title) nor the restated question.
+    `LegalQuery.within` keeps only the passages found in the lawyer's latest message: a probe showed *Analyst* v4 copying its
+    own instructions into `left_out`, which dropped true English claims and pushed false refusal to 4 of 72.
+  - The judge reads `Answer.question` (the restatement, excluded from the JSON). The runner retries `APIConnectionError`
+    (not timeouts) like throttling and logs each retry; the API already mapped it to 503.
+  - Caps: *Analyst* 800 → 1,600, *Counsel* 3,000 → 4,000 (truncated JSON in live runs; only tokens produced are billed).
+  - Figures: PR suites 23:03, 23:05 and 23:06 UTC: passed, passed, failed on recall 0.833 (6; article 249 for
+    "estafa básica" outside the first five); every other metric perfect, groundedness 0.986 to 1.000, canary 0. Full suite
+    23:24 UTC: recall 0.950 (60), citation precision 1.000 (59), groundedness 0.994 (84), version 1.000, correct refusal
+    1.000, false refusal 0.013 (75, the guardrail on intimate images), canary 0 of 15, errors 0, p50 6.3 s; the gate passes.
+    Recall sits between v4's 0.933 and v3's 0.966, the evidence that v5's queries are no worse. This column is the baseline.
+  - Review (subagent): 2 high, 2 medium and 5 low findings; all fixed except `left_out` covering earlier turns (low, left).
+  - Open for the 04 audit: the PR gate's six recall and six citation cases fail it on one miss; options are re-running a
+    failing case once before failing, or larger PR suites. English answers sometimes come back in Spanish (no threshold).
+- **API (`app/main.py`).** FastAPI's own SSE (`fastapi.sse.EventSourceResponse`, `ServerSentEvent`). The `start` dependency runs the
+  ownership check and pulls events until *Analyst* has replied, so failures there are real HTTP statuses; after the first byte an
+  `error` event carries the same RFC 9457 body and the request span is marked failed. Mapping: rate limit (`RateLimitError`, or
+  exactly `openai.APIError` from the stream) → 503 with the service's `Retry-After` or 20 s; `SearchUnavailableError` (raised by
+  `SearchRetriever`), other `AzureError`, connection or timeout → 503; deleted mid-stream → 404; other 4xx from the model and
+  `UnusableReplyError` → 502. The 500 handler and the 422 handler also answer problem+json. `conversation_id` is 32 hex or `new`;
+  `turn_id` 32 hex. Two live smokes measured the first byte at 1.9 to 9.0 s (six questions); the interface must show
+  *Analysing the question* on send.
+- **History is saved after the outcome is taken,** so the API writes the record first; `test_deleted_while_answering` holds it.
+- **Auth** accepts the role claim typed `role_typ` or `roles`, and the object id claim in its long form or `oid`, because Easy Auth's
+  shapes for Entra were not verified against a real header. Phase 7 checks them live.
+- **Telemetry:** `telemetry.configure()` runs at import, before the FastAPI app exists, so the Azure Monitor distro can instrument
+  it. Without `APPLICATIONINSIGHTS_CONNECTION_STRING`, KPI events go to a console log exporter (the handler from
+  `opentelemetry-instrumentation-logging`; the SDK's `LoggingHandler` is deprecated). `create_metric_views()` only: Juriscope has
+  no metric instruments of its own. `AnswerAccepted` carries `via`, as `docs/PRODUCT.md` says.
+- **Local Cosmos DB:** `COSMOS_KEY` in `.env` (the emulator's published key) makes the API create the database and both containers
+  with the 90-day TTL. The emulator accepted the partial update (`add /turns/-`).
+- **Decision B:** `04-required-checks.sh` adds `required_status_checks` (`ci`, `eval`, GitHub Actions' app id read with `gh api`) to
+  `protect-main`. `eval.yml` lost its `paths` filter, because a path-skipped workflow leaves a required check pending (GitHub
+  Docs); a `changes` job decides, a condition-skipped `eval` reports success, and a failed `changes` runs the gate anyway.
+  `ci.yml`'s job is now `ci`; phases 5 and 6 either add their steps to it or rerun the script with the new job names.
+- **Decision C:** `04-eval-identity.sh` creates `gh-product-legal-juriscope-pull-request` (pull-request credential only; Foundry
+  User on the project, Cognitive Services OpenAI User on the account, Search Index Data Reader on the `jur-articles-local` index,
+  a scope Learn documents for the CLI), sets `EVAL_CLIENT_ID`, removes the staging app's pull-request credential and deletes the
+  repository `AZURE_CLIENT_ID`. `01-azure.sh` no longer recreates either.
+- **The gate's retry** now covers `RateLimitError` and in-stream errors only; a timeout is reported as an error.
+- **Review:** an independent review (subagent) found no high-severity issue and 12 findings. Fixed: history orphaned by a failed or
+  raced record write; a deletion mid-stream reported as 503; the gate failing open when `changes` fails; Easy Auth claim shapes;
+  timeouts counted as rate limits; permanent model 4xx sent with `Retry-After`; unconstrained ids; free-text `turn_id`; 422 not
+  problem+json; the fake's not-found semantics. Left: the 2 MB item limit (ADR-002) and the all-zero trace id in unit tests
+  (phase 7 checks trace ids in Application Insights).
+- **Python module limits:** `app/main.py` is 187 non-blank lines against its 140: problem responses for three dependencies on both
+  sides of the first byte, and the pre-stream buffering. `app/workflow.py` is at 143 against 140. Totals stay within budget.
+  After the second `eval` fix: `app/models.py` 110 against 80 (the `left_out` removal, the claim check and `within`),
+  `app/corpus.py` 91 against 90, `app/doubles.py` 36 against 35, `eval/run.py` 119 against 85; moving the text checks to their
+  own module is left for the 04 audit, because it would change code after the measured runs.
+
 ## Verified names (installed wheels, 2026-10-30)
 
 Installed together: `agent-framework-core` 1.23.0, `agent-framework-foundry` 1.15.0 (it brings `agent-framework-openai` 1.17.0 and
@@ -266,3 +348,4 @@ Installed together: `agent-framework-core` 1.23.0, `agent-framework-foundry` 1.1
 | Doubles and history (2026-10-31) | `BaseChatClient._inner_get_response(*, messages, stream, options)` returning `ResponseStream(updates, finalizer=)` or its `get_final_response()`; `HistoryProvider.get_messages(session_id)` and `save_messages(session_id, messages)`; `InMemoryHistoryProvider` keeps messages in session state only |
 | Embeddings (2026-10-31) | `agent_framework.foundry.FoundryEmbeddingClient(project_endpoint=, model=, credential=)`; `await get_embeddings(texts)` → items with `.vector` |
 | Evaluation (2026-10-31) | `EvalItem(conversation, *, context=, expected_output=)`; `@evaluator` passes only `query`, `response`, `expected_output`, `expected_tool_calls`, `conversation`, `tools`, `context`; `LocalEvaluator(*checks).evaluate(items, eval_name=)` → `EvalResults.passed`, `.total`, `.items[].is_passed`, `.input_text` (scores are pass or fail, never a mean); `GroundednessEvaluator(model_config, *, threshold=3, credential=, is_reasoning_model=)` returns `groundedness` (1–5, NaN when unparsed); `AzureOpenAIModelConfiguration(azure_endpoint=, azure_deployment=, api_version=)`; `openai` 3.41.0 uses `httpx2` |
+| API (2026-10-31) | `fastapi.sse.EventSourceResponse` (`response_class=` on an async-generator route), `ServerSentEvent(event=, data=)`; `azure.cosmos.aio.ContainerProxy.patch_item(item, partition_key, patch_operations)`, `query_items(query, partition_key=)`, `read()`; `azure.cosmos.exceptions.CosmosResourceNotFoundError`; `CosmosClient(url, credential, connection_timeout=)`; `opentelemetry.instrumentation.logging.handler.LoggingHandler`; `opentelemetry.sdk._logs.export.ConsoleLogRecordExporter`; FastAPI's `TestClient` returns `httpx2.Response` |
