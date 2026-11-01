@@ -21,7 +21,8 @@ data in the EU. The shared base offers `gpt-5-mini` and `text-embedding-3-small`
 Option 1 for now, recorded as a trade-off.
 
 - **At rest, in the EU:** Cosmos DB, Storage and Application Insights in `swedencentral`; the search index in `spaincentral`, which
-  holds only the public text of the Code and processes the question text there. The history holds questions and answers
+  holds only the public text of the Code and processes the question text there. The Container Apps environment and app run in
+  `spaincentral` (from 2026-11-01) and keep nothing at rest; their logs go to the shared workspace. The history holds questions and answers
   (ADR-002); the model service stores nothing (`store: False`).
 - **Processing:** the two agents and the embeddings run on Global Standard and may be processed outside the EU. The interface asks
   lawyers not to paste client identities.
@@ -30,7 +31,9 @@ Option 1 for now, recorded as a trade-off.
 
 ## Consequences
 
-- **Cross-region search, measured 2026-10-31:** the app's region (`swedencentral`) is not the search region (`spaincentral`). Over
+- **Cross-region search, measured 2026-10-31 from a local machine:** the app then ran in `swedencentral`, not the search region. Since
+  2026-11-01 the app runs in `spaincentral` next to the search service, and model, Cosmos DB, Key Vault and telemetry calls cross to
+  `swedencentral` instead; phase 7 measures every step from the deployed app. Over
   19 live answers the `retrieve` step took a median of 0.84 s (0.39 to 2.26 s). That covers the hybrid query with the vectorizer
   embedding the queries and the semantic ranker, plus mapping ten chunks to articles in memory. The first query of a process
   took 3.9 s, cold.

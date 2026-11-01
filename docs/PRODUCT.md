@@ -239,6 +239,8 @@ The SLOs are internal targets, stricter than the SLAs, so that an SLO miss warns
 - **Classification.** Questions may hold special-category data (GDPR article 10, criminal matters) and are covered by professional
   secrecy. The interface asks users not to paste client identities.
 - **Residency.** At rest in the EU: Cosmos DB, Storage and Application Insights in Sweden Central, Azure AI Search in Spain Central.
+  The Container Apps environment and app run in Spain Central and keep nothing at rest; their logs go to the shared workspace in
+  Sweden Central (author's decision, 2026-11-01, because Sweden Central allows one managed environment per subscription).
   Inference runs on shared Global Standard deployments, which may process outside the EU; ADR-009 records this and the Data Zone EU
   alternative.
 - **Retention and deletion.** 90 days through the container TTL (REQ-10); one conversation or all of a user's on request (REQ-06).
