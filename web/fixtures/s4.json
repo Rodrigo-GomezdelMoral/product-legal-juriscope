@@ -1,0 +1,254 @@
+{
+ "id": "s4",
+ "title": "Fraud: limitation and a follow-up",
+ "recorded": "2026-11-01",
+ "meta": {
+  "updated": "2026-04-09",
+  "chat_model": "gpt-5-mini",
+  "embedding_model": "text-embedding-3-small",
+  "notice": "Basado en datos de la Agencia Estatal Boletín Oficial del Estado. Texto consolidado de carácter meramente informativo."
+ },
+ "turns": [
+  {
+   "question": "¿Cuándo prescribe un delito de estafa?",
+   "events": [
+    {
+     "event": "phase",
+     "data": {
+      "step": "analysing",
+      "articles": null
+     },
+     "at": 2281
+    },
+    {
+     "event": "phase",
+     "data": {
+      "step": "searching",
+      "articles": null
+     },
+     "at": 2281
+    },
+    {
+     "event": "phase",
+     "data": {
+      "step": "reading",
+      "articles": 10
+     },
+     "at": 2922
+    },
+    {
+     "event": "phase",
+     "data": {
+      "step": "drafting",
+      "articles": null
+     },
+     "at": 2922
+    },
+    {
+     "event": "phase",
+     "data": {
+      "step": "verifying",
+      "articles": null
+     },
+     "at": 8594
+    },
+    {
+     "event": "answer",
+     "data": {
+      "conversation_id": "s4",
+      "turn": {
+       "id": "s4-1",
+       "question": "¿Cuándo prescribe un delito de estafa?",
+       "asked": "2026-11-01T09:51:18.639828Z",
+       "outcome": {
+        "usage": {
+         "analyze_input": 885,
+         "analyze_output": 260,
+         "searches": 1,
+         "draft_input": 4279,
+         "draft_output": 649
+        },
+        "cost_eur": 0.004496,
+        "text": "El delito de estafa se castiga con la pena de prisión de seis meses a tres años. [1]\n\nLos delitos cuya pena máxima señalada por la ley no alcanza los cinco años prescriben a los cinco años, siendo en general, según el artículo 131, 'a los cinco, los demás delitos' (plazo de prescripción de las acciones penales). [2]\n\nEl último día para computar el plazo de prescripción comienza a contarse desde el día en que se haya cometido la infracción punible. [3]",
+        "citations": [
+         {
+          "block_id": "a248",
+          "title": "Artículo 248",
+          "url": "https://www.boe.es/buscar/act.php?id=BOE-A-1995-25444#a248",
+          "version": {
+           "norm": "BOE-A-2026-7966",
+           "published": "2026-04-09",
+           "in_force": "2026-04-10",
+           "text": "Cometen estafa los que, con ánimo de lucro, utilizaren engaño bastante para producir error en otro, induciéndolo a realizar un acto de disposición en perjuicio propio o ajeno.\nLos reos de estafa serán castigados con la pena de prisión de seis meses a tres años. Para la fijación de la pena se tendrá en cuenta el importe de lo defraudado, el quebranto económico causado al perjudicado, las relaciones entre este y el defraudador, los medios empleados por este y cuantas otras circunstancias sirvan para valorar la gravedad de la infracción.\nSi la cuantía de lo defraudado no excediere de 400 euros, se impondrá la pena de multa de uno a tres meses, salvo si concurriere alguna de las circunstancias del artículo 250. No obstante, en el caso de que el culpable hubiera sido condenado ejecutoriamente al menos por tres delitos de la misma naturaleza, comprendidos en este capítulo, y siendo al menos uno de ellos leve, se impondrá la pena prevista en el párrafo segundo del presente artículo. No se tendrán en cuenta los antecedentes penales cancelados o que debieran serlo.",
+           "note": "Se modifica por el art. 2.6 de la Ley Orgánica 1/2026, de 8 de abril. Ref. BOE-A-2026-7966#as"
+          },
+          "current": null,
+          "repealed": null,
+          "see_also": [
+           {
+            "block_id": "a250",
+            "title": "Artículo 250",
+            "url": "https://www.boe.es/buscar/act.php?id=BOE-A-1995-25444#a250"
+           }
+          ]
+         },
+         {
+          "block_id": "a131",
+          "title": "Artículo 131",
+          "url": "https://www.boe.es/buscar/act.php?id=BOE-A-1995-25444#a131",
+          "version": {
+           "norm": "BOE-A-2015-3439",
+           "published": "2015-03-31",
+           "in_force": "2015-07-01",
+           "text": "1. Los delitos prescriben:\nA los veinte años, cuando la pena máxima señalada al delito sea prisión de quince o más años.\nA los quince, cuando la pena máxima señalada por la ley sea inhabilitación por más de diez años, o prisión por más de diez y menos de quince años.\nA los diez, cuando la pena máxima señalada por la ley sea prisión o inhabilitación por más de cinco años y que no exceda de diez.\nA los cinco, los demás delitos, excepto los delitos leves y los delitos de injurias y calumnias, que prescriben al año.\n2. Cuando la pena señalada por la ley fuere compuesta, se estará, para la aplicación de las reglas comprendidas en este artículo, a la que exija mayor tiempo para la prescripción.\n3. Los delitos de lesa humanidad y de genocidio y los delitos contra las personas y bienes protegidos en caso de conflicto armado, salvo los castigados en el artículo 614, no prescribirán en ningún caso.\nTampoco prescribirán los delitos de terrorismo, si hubieren causado la muerte de una persona.\n4. En los supuestos de concurso de infracciones o de infracciones conexas, el plazo de prescripción será el que corresponda al delito más grave.",
+           "note": "Se modifica por el art. único.72 de la Ley Orgánica 1/2015, de 30 de marzo. Ref. BOE-A-2015-3439."
+          },
+          "current": null,
+          "repealed": null,
+          "see_also": [
+           {
+            "block_id": "a614",
+            "title": "Artículo 614",
+            "url": "https://www.boe.es/buscar/act.php?id=BOE-A-1995-25444#a614"
+           }
+          ]
+         },
+         {
+          "block_id": "a132",
+          "title": "Artículo 132",
+          "url": "https://www.boe.es/buscar/act.php?id=BOE-A-1995-25444#a132",
+          "version": {
+           "norm": "BOE-A-2023-10213",
+           "published": "2023-04-28",
+           "in_force": "2023-04-29",
+           "text": "1. Los términos previstos en el artículo precedente se computarán desde el día en que se haya cometido la infracción punible. En los casos de delito continuado, delito permanente, así como en las infracciones que exijan habitualidad, tales términos se computarán, respectivamente, desde el día en que se realizó la última infracción, desde que se eliminó la situación ilícita o desde que cesó la conducta.\nEn los delitos de aborto no consentido, lesiones, contra la libertad, de torturas y contra la integridad moral, contra la intimidad, el derecho a la propia imagen y la inviolabilidad del domicilio, y contra las relaciones familiares, excluidos los delitos contemplados en el párrafo siguiente, cuando la víctima fuere una persona menor de dieciocho años, los términos se computarán desde el día en que ésta haya alcanzado la mayoría de edad, y si falleciere antes de alcanzarla, a partir de la fecha del fallecimiento.\nEn los delitos de tentativa de homicidio, de lesiones de los artículos 149 y 150, en el delito de maltrato habitual previsto en el artículo 173.2, en los delitos contra la libertad sexual y en los delitos de trata de seres humanos, cuando la víctima fuere una persona menor de dieciocho años, los términos se computarán desde que la víctima cumpla los treinta y cinco años de edad, y si falleciere antes de alcanzar esa edad, a partir de la fecha del fallecimiento.\n2. La prescripción se interrumpirá, quedando sin efecto el tiempo transcurrido, cuando el procedimiento se dirija contra la persona indiciariamente responsable del delito, comenzando a correr de nuevo desde que se paralice el procedimiento o termine sin condena de acuerdo con las reglas siguientes:\n1.ª Se entenderá dirigido el procedimiento contra una persona determinada desde el momento en que, al incoar la causa o con posterioridad, se dicte resolución judicial motivada en la que se le atribuya su presunta participación en un hecho que pueda ser constitutivo de delito.\n2.ª No obstante lo anterior, la presentación de querella o la denuncia formulada ante un órgano judicial, en la que se atribuya a una persona determinada su presunta participación en un hecho que pueda ser constitutivo de delito, suspenderá el cómputo de la prescripción por un plazo máximo de seis meses, a contar desde la misma fecha de presentación de la querella o de formulación de la denuncia.\nSi dentro de dicho plazo se dicta contra el querellado o denunciado, o contra cualquier otra persona implicada en los hechos, alguna de las resoluciones judiciales mencionadas en la regla 1.ª, la interrupción de la prescripción se entenderá retroactivamente producida, a todos los efectos, en la fecha de presentación de la querella o denuncia.\nPor el contrario, el cómputo del término de prescripción continuará desde la fecha de presentación de la querella o denuncia si, dentro del plazo de seis meses, recae resolución judicial firme de inadmisión a trámite de la querella o denuncia o por la que se acuerde no dirigir el procedimiento contra la persona querellada o denunciada. La continuación del cómputo se producirá también si, dentro de dicho plazo, el juez de instrucción no adoptara ninguna de las resoluciones previstas en este artículo.\n3. A los efectos de este artículo, la persona contra la que se dirige el procedimiento deberá quedar suficientemente determinada en la resolución judicial, ya sea mediante su identificación directa o mediante datos que permitan concretar posteriormente dicha identificación en el seno de la organización o grupo de personas a quienes se atribuya el hecho.\n4. En los procedimientos cuya investigación haya sido asumida por la Fiscalía Europea, la prescripción se interrumpirá:\na) cuando se dirija la investigación contra una persona determinada, suficientemente identificada, en los términos del apartado anterior, y así quede reflejado en un Decreto motivado.\nb) cuando se interponga querella o denuncia ante la Fiscalía Europea en la que se atribuya a una persona determinada su presunta participación en un hecho que pueda ser constitutivo de delito, resultando de aplicación la regla 2.ª del apartado 2 de este artículo.",
+           "note": "Se modifica el apartado 1 por el art único.1 de la Ley Orgánica 4/2023, de 27 de abril. Ref. BOE-A-2023-10213#au"
+          },
+          "current": null,
+          "repealed": null,
+          "see_also": [
+           {
+            "block_id": "a149",
+            "title": "Artículo 149",
+            "url": "https://www.boe.es/buscar/act.php?id=BOE-A-1995-25444#a149"
+           },
+           {
+            "block_id": "a150",
+            "title": "Artículo 150",
+            "url": "https://www.boe.es/buscar/act.php?id=BOE-A-1995-25444#a150"
+           },
+           {
+            "block_id": "a173",
+            "title": "Artículo 173",
+            "url": "https://www.boe.es/buscar/act.php?id=BOE-A-1995-25444#a173"
+           },
+           {
+            "block_id": "a131",
+            "title": "Artículo 131",
+            "url": "https://www.boe.es/buscar/act.php?id=BOE-A-1995-25444#a131"
+           }
+          ]
+         }
+        ],
+        "claims": 3,
+        "dropped_claims": 0,
+        "language": "es",
+        "facts_date": null
+       }
+      }
+     },
+     "at": 8609
+    }
+   ]
+  },
+  {
+   "question": "¿Y si la estafa es agravada?",
+   "events": [
+    {
+     "event": "phase",
+     "data": {
+      "step": "analysing",
+      "articles": null
+     },
+     "at": 3031
+    },
+    {
+     "event": "phase",
+     "data": {
+      "step": "searching",
+      "articles": null
+     },
+     "at": 3031
+    },
+    {
+     "event": "phase",
+     "data": {
+      "step": "reading",
+      "articles": 10
+     },
+     "at": 3593
+    },
+    {
+     "event": "phase",
+     "data": {
+      "step": "drafting",
+      "articles": null
+     },
+     "at": 3609
+    },
+    {
+     "event": "phase",
+     "data": {
+      "step": "verifying",
+      "articles": null
+     },
+     "at": 8812
+    },
+    {
+     "event": "answer",
+     "data": {
+      "conversation_id": "s4",
+      "turn": {
+       "id": "s4-2",
+       "question": "¿Y si la estafa es agravada?",
+       "asked": "2026-11-01T09:51:27.289532Z",
+       "outcome": {
+        "usage": {
+         "analyze_input": 1042,
+         "analyze_output": 211,
+         "searches": 1,
+         "draft_input": 4972,
+         "draft_output": 610
+        },
+        "cost_eur": 0.004528,
+        "text": "El delito de estafa será castigado con las penas de prisión de uno a seis años y multa de seis a doce meses cuando concurra alguna de las circunstancias siguientes: 1.º Recaiga sobre cosas de primera necesidad, viviendas u otros bienes de reconocida utilidad social; 2.º Se perpetre abusando de firma de otro, o sustrayendo, ocultando o inutilizando, en todo o en parte, algún proceso, expediente, protocolo o documento público u oficial de cualquier clase; 3.º Recaiga sobre bienes que integren el patrimonio artístico, histórico, cultural o científico; 4.º Revista especial gravedad, atendiendo a la entidad del perjuicio y a la situación económica en que deje a la víctima o a su familia; 5.º El valor de la defraudación supere los 50.000 euros, o afecte a un elevado número de personas; 6.º Se cometa con abuso de las relaciones personales existentes entre víctima y defraudador, o aproveche éste su credibilidad empresarial o profesional; 7.º Se cometa estafa procesal; 8.º Al delinquir el culpable hubiera sido condenado ejecutoriamente, al menos, por tres delitos menos graves o graves comprendidos en este capítulo, siempre que sean de la misma naturaleza. [1]\n\nSi concurrieren las circunstancias incluidas en los numerales 4.º, 5.º, 6.º o 7.º junto con la del numeral 1.º, se impondrán las penas de prisión de cuatro a ocho años y multa de doce a veinticuatro meses; la misma pena se impondrá cuando el valor de la defraudación supere los 250.000 euros. [1]",
+        "citations": [
+         {
+          "block_id": "a250",
+          "title": "Artículo 250",
+          "url": "https://www.boe.es/buscar/act.php?id=BOE-A-1995-25444#a250",
+          "version": {
+           "norm": "BOE-A-2026-7966",
+           "published": "2026-04-09",
+           "in_force": "2026-04-10",
+           "text": "1. El delito de estafa será castigado con las penas de prisión de uno a seis años y multa de seis a doce meses, cuando:\n1.º Recaiga sobre cosas de primera necesidad, viviendas u otros bienes de reconocida utilidad social.\n2.º Se perpetre abusando de firma de otro, o sustrayendo, ocultando o inutilizando, en todo o en parte, algún proceso, expediente, protocolo o documento público u oficial de cualquier clase.\n3.º Recaiga sobre bienes que integren el patrimonio artístico, histórico, cultural o científico.\n4.º Revista especial gravedad, atendiendo a la entidad del perjuicio y a la situación económica en que deje a la víctima o a su familia.\n5.º El valor de la defraudación supere los 50.000 euros, o afecte a un elevado número de personas.\n6.º Se cometa con abuso de las relaciones personales existentes entre víctima y defraudador, o aproveche éste su credibilidad empresarial o profesional.\n7.º Se cometa estafa procesal. Incurren en la misma los que, en un procedimiento judicial de cualquier clase, manipularen las pruebas en que pretendieran fundar sus alegaciones o emplearen otro fraude procesal análogo, provocando error en el juez o tribunal y llevándole a dictar una resolución que perjudique los intereses económicos de la otra parte o de un tercero.\n8.º Al delinquir el culpable hubiera sido condenado ejecutoriamente, al menos, por tres delitos menos graves o graves comprendidos en este capítulo, siempre que sean de la misma naturaleza. No se tendrán en cuenta los antecedentes cancelados o que debieran serlo.\n2. Si concurrieran las circunstancias incluidas en los numerales 4.º, 5.º, 6.º o 7.º con la del numeral 1.º del apartado anterior, se impondrán las penas de prisión de cuatro a ocho años y multa de doce a veinticuatro meses. La misma pena se impondrá cuando el valor de la defraudación supere los 250.000 euros.",
+           "note": "Se modifica el numeral 8º del apartado 1 por el art. 2.7 de la Ley Orgánica 1/2026, de 8 de abril. Ref. BOE-A-2026-7966#as"
+          },
+          "current": null,
+          "repealed": null,
+          "see_also": []
+         }
+        ],
+        "claims": 2,
+        "dropped_claims": 0,
+        "language": "es",
+        "facts_date": null
+       }
+      }
+     },
+     "at": 8859
+    }
+   ]
+  }
+ ]
+}

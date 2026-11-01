@@ -1,0 +1,102 @@
+{
+ "id": "s5",
+ "title": "Self-defence, asked in English",
+ "recorded": "2026-11-01",
+ "meta": {
+  "updated": "2026-04-09",
+  "chat_model": "gpt-5-mini",
+  "embedding_model": "text-embedding-3-small",
+  "notice": "Basado en datos de la Agencia Estatal Boletín Oficial del Estado. Texto consolidado de carácter meramente informativo."
+ },
+ "turns": [
+  {
+   "question": "What does the Criminal Code say about self-defence?",
+   "events": [
+    {
+     "event": "phase",
+     "data": {
+      "step": "analysing",
+      "articles": null
+     },
+     "at": 1953
+    },
+    {
+     "event": "phase",
+     "data": {
+      "step": "searching",
+      "articles": null
+     },
+     "at": 1953
+    },
+    {
+     "event": "phase",
+     "data": {
+      "step": "reading",
+      "articles": 10
+     },
+     "at": 2688
+    },
+    {
+     "event": "phase",
+     "data": {
+      "step": "drafting",
+      "articles": null
+     },
+     "at": 2688
+    },
+    {
+     "event": "phase",
+     "data": {
+      "step": "verifying",
+      "articles": null
+     },
+     "at": 5906
+    },
+    {
+     "event": "answer",
+     "data": {
+      "conversation_id": "s5",
+      "turn": {
+       "id": "s5-1",
+       "question": "What does the Criminal Code say about self-defence?",
+       "asked": "2026-11-01T09:51:36.210746Z",
+       "outcome": {
+        "usage": {
+         "analyze_input": 887,
+         "analyze_output": 201,
+         "searches": 1,
+         "draft_input": 3656,
+         "draft_output": 338
+        },
+        "cost_eur": 0.003708,
+        "text": "Article 20 exempts from criminal responsibility the person who acts in defense of their own or others’ person or rights, provided certain requirements concur. [1]\n\nThe requirements are: First, an illegitimate aggression; for defense of goods, an illegitimate aggression is the attack on them that constitutes a crime and puts them in grave danger of imminent deterioration or loss, and for defense of the dwelling or its dependencies an illegitimate aggression is unlawful entry into them. [1]\n\nSecond, the rational necessity of the means employed to prevent or repel the aggression; and Third, the lack of sufficient provocation by the defender. [1]",
+        "citations": [
+         {
+          "block_id": "a20",
+          "title": "Artículo 20",
+          "url": "https://www.boe.es/buscar/act.php?id=BOE-A-1995-25444#a20",
+          "version": {
+           "norm": "BOE-A-2015-3439",
+           "published": "2015-03-31",
+           "in_force": "2015-07-01",
+           "text": "Están exentos de responsabilidad criminal:\n1.º El que al tiempo de cometer la infracción penal, a causa de cualquier anomalía o alteración psíquica, no pueda comprender la ilicitud del hecho o actuar conforme a esa comprensión.\nEl trastorno mental transitorio no eximirá de pena cuando hubiese sido provocado por el sujeto con el propósito de cometer el delito o hubiera previsto o debido prever su comisión.\n2.º El que al tiempo de cometer la infracción penal se halle en estado de intoxicación plena por el consumo de bebidas alcohólicas, drogas tóxicas, estupefacientes, sustancias psicotrópicas u otras que produzcan efectos análogos, siempre que no haya sido buscado con el propósito de cometerla o no se hubiese previsto o debido prever su comisión, o se halle bajo la influencia de un síndrome de abstinencia, a causa de su dependencia de tales sustancias, que le impida comprender la ilicitud del hecho o actuar conforme a esa comprensión.\n3.º El que, por sufrir alteraciones en la percepción desde el nacimiento o desde la infancia, tenga alterada gravemente la conciencia de la realidad.\n4.º El que obre en defensa de la persona o derechos propios o ajenos, siempre que concurran los requisitos siguientes:\nPrimero. Agresión ilegítima. En caso de defensa de los bienes se reputará agresión ilegítima el ataque a los mismos que constituya delito y los ponga en grave peligro de deterioro o pérdida inminentes. En caso de defensa de la morada o sus dependencias, se reputará agresión ilegítima la entrada indebida en aquélla o éstas.\nSegundo. Necesidad racional del medio empleado para impedirla o repelerla.\nTercero. Falta de provocación suficiente por parte del defensor.\n5.º El que, en estado de necesidad, para evitar un mal propio o ajeno lesione un bien jurídico de otra persona o infrinja un deber, siempre que concurran los siguientes requisitos:\nPrimero. Que el mal causado no sea mayor que el que se trate de evitar.\nSegundo. Que la situación de necesidad no haya sido provocada intencionadamente por el sujeto.\nTercero. Que el necesitado no tenga, por su oficio o cargo, obligación de sacrificarse.\n6.º El que obre impulsado por miedo insuperable.\n7.º El que obre en cumplimiento de un deber o en el ejercicio legítimo de un derecho, oficio o cargo.\nEn los supuestos de los tres primeros números se aplicarán, en su caso, las medidas de seguridad previstas en este Código.",
+           "note": "Se modifica el punto primero del numeral 4º por el art. único.13 de la Ley Orgánica 1/2015, de 30 de marzo. Ref. BOE-A-2015-3439."
+          },
+          "current": null,
+          "repealed": null,
+          "see_also": []
+         }
+        ],
+        "claims": 3,
+        "dropped_claims": 0,
+        "language": "en",
+        "facts_date": null
+       }
+      }
+     },
+     "at": 5938
+    }
+   ]
+  }
+ ]
+}

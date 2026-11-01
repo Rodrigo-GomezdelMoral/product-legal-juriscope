@@ -47,7 +47,7 @@ phase closes and how each will be demonstrated (a test and, from phase 7, a live
   The counts come from `make budget`.
 - **Identity is the author's.** App registrations, role assignments, federated credentials, GitHub secrets and variables go in
   `../_scripts/product-legal-juriscope/<nn>-<what>.sh`; write the script and stop. Written: `01-codeql.sh` (phase 1), `03-eval-variables.sh`
-  (phase 3), `04-eval-identity.sh` and `04-required-checks.sh` (phase 4). Planned: `07-staging.sh` (phase 7, which must also give
+  (phase 3), `04-eval-identity.sh` and `04-required-checks.sh` (phase 4), `05-codeql-web.sh` (phase 5, after its merge). Planned: `07-staging.sh` (phase 7, which must also give
   `gh-product-legal-juriscope-pull-request` Search Index Data Reader on `jur-articles-stg` when it switches `EVAL_SEARCH_INDEX`),
   `08-production.sh` (phase 8).
 - **Azure only in phases 7 and 8.** Until then: local, the Cosmos DB emulator, Bicep `what-if`, and the shared model deployments and
@@ -324,6 +324,40 @@ phase closes and how each will be demonstrated (a test and, from phase 7, a live
   After the second `eval` fix: `app/models.py` 110 against 80 (the `left_out` removal, the claim check and `within`),
   `app/corpus.py` 91 against 90, `app/doubles.py` 36 against 35, `eval/run.py` 119 against 85; moving the text checks to their
   own module is left for the 04 audit, because it would change code after the measured runs.
+
+## Decisions taken in phase 5
+
+- **`web/` copies Folium's client** (the first `product-*` with `web/`), changing only the name, logo, suggestions and logic:
+  React 19.3.1, TypeScript 7.0.2 (`tsc --noEmit` passes, no fallback to 6.x), Vite 8.3.5, `lucide-react` 1.65.0, `react-markdown`
+  10.1.0 (as in the sibling products), `@fontsource/inter` 5.3.0. `api.ts` holds the types, the SSE parser and the demo replay;
+  `Article.tsx` the article and refusal cards; `main.tsx` the shell. TypeScript 422 of 799 lines.
+- **The interface** shows *Analysing the question* the moment a question is sent (19 to 38 ms, measured), then each `phase` event
+  as a progress line; the article card shows the version badge, six clamped lines with *Show full article*, both versions side by
+  side when the date of the facts selects an older one, "See also", the boe.es link and *Fuente de los datos: Agencia Estatal
+  Boletín Oficial del Estado* (verbatim copy). The answer footer uses the API's notice, *Basado en datos de la Agencia Estatal
+  Boletín Oficial del Estado. Texto consolidado de carácter meramente informativo.*, plus the update date and "For the firm's
+  lawyers. Not legal advice." A stream that ends without an outcome shows "The answer was interrupted".
+- **Demo mode** reads `web/fixtures/*.json` at build time; `?run=<id>` replays a run on load (shareable, and how the axe job
+  reaches each recorded state). Fixtures come from `ops/record.py`, which records SSE events with their timings from a running API
+  (`RECORD_AUTH_HEADER` carries the auth header, never the command line), checks that every turn ended in an answer or a refusal,
+  replaces the conversation and turn ids with the run id, and deletes the recorded conversation. The phase 5 fixtures were
+  recorded on 2026-11-01 from the local API (emulator, shared models, `jur-articles-local`); **phase 8 re-records them from
+  staging with the same command.** One recording of S4's follow-up, worded "¿Y si es agravada?", cited article 248 instead of 250, so
+  the run asks "¿Y si la estafa es agravada?"; S4's follow-up then cited 250 only, not 131 (limitation).
+- **`app/main.py` serves `web/dist`** at `/` when it exists (phase 6's image builds it); the API routes match first.
+- **CI:** the web, demo and axe steps are inside the `ci` job, so the required checks stay `ci` and `eval` and
+  `04-required-checks.sh` need not run again. axe (`@axe-core/cli` 4.14.0, a pinned dev dependency, with the runner's
+  chromedriver because the package's own targets Chrome 152) scans the empty state and every recorded run after 25 s, and S1
+  mid-stream after 3 s. Dependabot watches `npm` in `/web`.
+- **Chrome's `scrollIntoView` now returns a Promise:** an effect that returns it crashes React on cleanup, so effects use `void`.
+- **CodeQL default setup** analyses `actions` and `python`; GitHub Docs do not say whether a new language joins by itself, so
+  `05-codeql-web.sh` adds `javascript-typescript` after the merge if it is missing.
+- **Review:** an independent review (subagent) raised 1 high, 5 medium and 5 low findings. Fixed: raw 32-hex ids in the fixtures,
+  the green "done" text under 4.5:1, `aria-busy` silencing the progress status and a `log` region reading whole articles, missing
+  `lang` on answers, the open mobile drawer leaving the thread focusable (`inert`, Escape), a stream ending without an outcome,
+  recorder failures leaving conversations behind, the auth header on the command line, a missing `web/dist`, the mid-stream axe
+  pass, a rejected clipboard write, a stale `?run=` after *New chat*, and the empty search result. Left: focus is not returned to
+  the menu button when Escape closes the drawer.
 
 ## Verified names (installed wheels, 2026-10-30)
 
