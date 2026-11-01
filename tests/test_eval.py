@@ -1,15 +1,17 @@
+import asyncio
 from collections import Counter
 from datetime import date
 
 import httpx2
+import pytest
 from agent_framework.exceptions import ChatClientException
-from openai import APIError, APIStatusError, APITimeoutError, RateLimitError
+from openai import APIConnectionError, APIError, APIStatusError, APITimeoutError, RateLimitError
 
 from app.corpus import Corpus, normalise
 from app.models import Answer, Citation, Refusal
 from app.workflow import throttled
 from eval.evaluators import Case, Observed
-from eval.run import THRESHOLDS, gate, load, measure, passes, report
+from eval.run import THRESHOLDS, Runner, gate, load, measure, passes, report, retried
 
 SIZES = {"golden": 60, "versions": 15, "unanswerable": 20, "adversarial": 15, "smoke": 10}
 
@@ -69,18 +71,34 @@ async def test_gate_scores_each_metric(corpus: Corpus) -> None:
     assert not gate(clean) and "canary_appearances: no case" in report("header", pairs, clean)
 
 
-def test_rate_limits_are_retried() -> None:
+def test_rate_limits_and_lost_connections_are_retried() -> None:
     request = httpx2.Request("POST", "https://example.org")
-    for cause, retried in [
-        (APIError("rate limit", request, body=None), True),
-        (RateLimitError("429", response=httpx2.Response(429, request=request), body=None), True),
-        (APITimeoutError(request), False),
-        (APIStatusError("bad", response=httpx2.Response(400, request=request), body=None), False),
-        (None, False),
+    for cause, expected in [
+        (APIError("rate limit", request, body=None), (True, True)),
+        (RateLimitError("429", response=httpx2.Response(429, request=request), body=None), (True, True)),
+        (APIConnectionError(request=request), (False, True)),
+        (APITimeoutError(request), (False, False)),
+        (APIStatusError("bad", response=httpx2.Response(400, request=request), body=None), (False, False)),
+        (None, (False, False)),
     ]:
         error = ChatClientException("failed")
         error.__cause__ = cause
-        assert throttled(error) is retried
+        assert (throttled(error), retried(error)) == expected
+
+
+class Flaky(Runner):
+    def __init__(self) -> None:
+        self.gate, self.calls = asyncio.Semaphore(), 0
+
+    async def observe(self, case: Case) -> Observed:
+        self.calls += 1
+        raise ChatClientException("lost") from APIConnectionError(request=httpx2.Request("POST", "https://example.org"))
+
+
+async def test_a_lost_connection_is_retried_and_logged(capsys: pytest.CaptureFixture[str]) -> None:
+    runner = Flaky()
+    assert await runner.attempt(Case(question="q"), pauses=(0,)) == "q: ChatClientException: lost" and runner.calls == 2
+    assert "APIConnectionError, retry in 0 s: q" in capsys.readouterr().err
 
 
 def test_thresholds_bound_the_gate() -> None:

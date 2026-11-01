@@ -37,7 +37,9 @@ Option 3, in `app/workflow.py`:
   `refuse`.
 - **Only *Analyst* reads the conversation and the lawyer's words.** *Counsel* receives one message: *Analyst*'s restatement of the
   question, the language, the date of the facts and the retrieved articles (phase 4, decision approved by the author on
-  2026-10-31). An instruction written in the question has to survive the restatement to reach the drafter.
+  2026-10-31). An instruction written in the question has to survive the restatement to reach the drafter, and, since
+  `analyst_v4.md`, code removes every passage *Analyst* lists in `left_out` from the restatement and drops a claim that repeats
+  one ([ADR-005](005-structured-output-and-verification.md)).
 - **The workflow is run with `workflow.run(..., stream=True)`, not through `as_agent`,** and `Juriscope.ask` loads and saves the
   history itself with the provider's `get_messages` and `save_messages`. This is the fallback the build prompt allowed, chosen on
   evidence from the installed `agent-framework-core` 1.23.0:

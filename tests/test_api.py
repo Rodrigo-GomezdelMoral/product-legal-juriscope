@@ -14,7 +14,7 @@ from azure.core.exceptions import ServiceRequestError
 from azure.cosmos.aio import ContainerProxy
 from azure.cosmos.exceptions import CosmosResourceNotFoundError
 from fastapi.testclient import TestClient
-from openai import APIError, RateLimitError
+from openai import APIConnectionError, APIError, RateLimitError
 from pydantic import BaseModel
 
 from app.auth import OBJECT_ID, ROLE
@@ -221,6 +221,9 @@ def test_model_429_is_503(corpus: Corpus) -> None:
         assert api.http.get("/api/conversations", headers=ANA).json() == []
     late = Api(corpus, {Draft: throttled(APIError("rate limit", request, body=None))}).ask()
     assert late[-1][0] == "error" and (late[-1][1]["status"], late[-1][1]["retry_after"]) == (503, 20)
+    lost = Api(corpus, {LegalQuery: throttled(APIConnectionError(request=request))})
+    body = problem(lost.http.post("/api/conversations/new/messages", json=ASKED, headers=ANA), 503)
+    assert body["detail"].startswith("The language model is unavailable") and body["retry_after"] == 20
 
 
 async def unavailable(queries: list[str]) -> list[Chunk]:

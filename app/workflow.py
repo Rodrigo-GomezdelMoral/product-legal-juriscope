@@ -49,8 +49,8 @@ def in_scope(response: AgentExecutorResponse) -> bool:
     return (query := parsed(response, LegalQuery)) is not None and query.scope == "criminal_code"
 
 
-def compose(draft: Draft, query: LegalQuery, citations: dict[str, Citation]) -> Answer | None:
-    kept = [claim for claim in draft.claims if claim.article_ids and set(claim.article_ids) <= citations.keys()]
+def compose(draft: Draft, query: LegalQuery, citations: dict[str, Citation], known: frozenset[str]) -> Answer | None:
+    kept = [claim for claim in draft.claims if claim.verified(query, citations, known)]
     if not kept:
         return None
     order = list(dict.fromkeys(block_id for claim in kept for block_id in claim.article_ids))
@@ -60,14 +60,14 @@ def compose(draft: Draft, query: LegalQuery, citations: dict[str, Citation]) -> 
         citations=[citations[block_id] for block_id in order],
         claims=len(kept),
         dropped_claims=len(draft.claims) - len(kept),
-        language=query.language,
-        facts_date=query.facts_date,
+        **query.model_dump(include={"question", "language", "facts_date"}),
     )
 
 
 def retrieval(search: Retriever, corpus: Corpus) -> FunctionExecutor:
     async def retrieve(response: AgentExecutorResponse, ctx: Routing) -> None:
-        query = cast(LegalQuery, response.agent_response.value)
+        asked = next(message.text for message in reversed(response.full_conversation) if message.role == "user")
+        query = cast(LegalQuery, response.agent_response.value).within(asked)
         chunks = await search(query.search_queries) if query.search_queries else []
         found = dict.fromkeys(block_id for chunk in chunks for block_id in corpus.locate(chunk.content))
         citations = {block_id: citation for block_id in found if (citation := corpus.cite(block_id, query.facts_date))}
@@ -75,7 +75,7 @@ def retrieval(search: Retriever, corpus: Corpus) -> FunctionExecutor:
         if not citations:
             await ctx.send_message(Refusal(reason="no_evidence"))
             return
-        ctx.set_state("retrieved", (query, citations))
+        ctx.set_state("retrieved", (query, citations, corpus.words))
         request = [Message(role="user", contents=[brief(query, list(citations.values()))])]
         await ctx.send_message(AgentExecutorRequest(messages=request, should_respond=True))
 

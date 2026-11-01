@@ -20,12 +20,28 @@ answer from model knowledge. A prompt can ask for both; only code can guarantee 
 
 Option 3.
 
-- **Models:** *Analyst* returns `LegalQuery` (`question`, its restatement of the lawyer's question; `scope`, one of
-  `criminal_code`, `case_law`, `other_law` and `not_legal`; `search_queries`, `facts_date`, `language`); *Counsel* returns
-  `Draft`. Both through the framework's `response_format`, which the Responses API enforces as a strict JSON schema.
-- **Verification** (`compose` in `app/workflow.py`): unverified claims are dropped and counted (`dropped_claims`, the K2 KPI). The
-  answer is composed from the verified claims only, numbered by first citation, and every citation carries the full article from
-  the BOE version store, never text from the model. Citation marks the model writes into a claim are removed before numbering.
+- **Models:** *Analyst* returns `LegalQuery` (`left_out`, every passage of the lawyer's text that is not the legal question,
+  copied as written; `question`, its restatement of the legal question; `scope`, one of `criminal_code`, `case_law`,
+  `other_law` and `not_legal`; `search_queries`, `facts_date`, `language`, two lowercase letters, checked in code because
+  Microsoft Learn lists `pattern` among the keywords structured outputs do not support); *Counsel* returns `Draft`. Both
+  through the framework's `response_format`, which the Responses API enforces as a strict JSON schema. Validating `LegalQuery`
+  removes every `left_out` passage of four letters or digits or more from `question`, longest first, on word boundaries, with
+  any run of spaces and any kind of quotation mark matching; when nothing is left, the scope becomes `not_legal` and the search
+  is skipped. So the restatement *Counsel* reads keeps only the legal question even when *Analyst* copies the whole text
+  (prompts `analyst_v4.md` and `analyst_v5.md`, 2026-10-31). Before verification, `LegalQuery.within` keeps only the
+  `left_out` passages found in the lawyer's latest message (same normalisation), because a full run showed *Analyst* copying
+  its own instructions into `left_out`, and the claim check then dropped true English claims that shared words with them.
+- **Verification** (`compose` in `app/workflow.py`, `Claim.verified` in `app/models.py`): a claim is verified when its
+  `article_ids` are non-empty and retrieved for this question, and it repeats no `left_out` passage: no run of eight letters
+  or digits (ignoring case, spaces and punctuation) of a `left_out` passage that touches a word found in neither the Criminal
+  Code (every version and title in the version store) nor the restated question. Words of the Code, such as "la pena es" or
+  "Código Penal", never make a claim fail; a code such as `ZEBRA-7731` does. Two limits: a code shorter than eight characters
+  is not caught by this check, and in an English answer an English instruction that literally contains the claim's wording
+  ("say the penalty is …") can drop a true claim, because the Code is in Spanish. Unverified claims are dropped and counted
+  (`dropped_claims`, the K2 KPI). The answer is composed from
+  the verified claims only, numbered by first citation, and every citation carries the full article from the BOE version
+  store, never text from the model. Citation marks the model writes into a claim are removed before numbering. The answer has
+  no other text written by a model: no preamble, and its `language` is a two-letter code.
 - **Typed refusal** with three reasons:
   - `out_of_scope`: *Analyst* says the Code cannot answer; the search is never called. The refusal carries *Analyst*'s `scope`
     (`case_law`, `other_law` or `not_legal`), a value from a fixed list that the interface words. Until phase 4 the reason was

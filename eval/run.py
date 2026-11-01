@@ -15,6 +15,7 @@ from azure.core.credentials_async import AsyncTokenCredential
 from azure.core.exceptions import AzureError
 from azure.identity import DefaultAzureCredential as JudgeCredential
 from azure.identity.aio import DefaultAzureCredential
+from openai import APIConnectionError, APITimeoutError
 
 from app.agents import EFFORT, chat_client
 from app.config import SharedBase
@@ -30,6 +31,11 @@ THRESHOLDS: dict[str, dict[str, float]] = yaml.safe_load((ROOT / "thresholds.yam
 CONCURRENCY, PAUSES, LOW_GROUNDEDNESS = 4, (20, 40, 80), 0.75
 HOST = re.compile(r"[\w-]+(?:\.[\w-]+)*\.(?:com|net|io)\b\S*")
 Metric = tuple[float, int, list[str]]
+
+
+def retried(error: BaseException) -> bool:
+    cause = error.__cause__
+    return throttled(error) or (isinstance(cause, APIConnectionError) and not isinstance(cause, APITimeoutError))
 
 
 def load(names: list[str]) -> list[tuple[str, Case]]:
@@ -60,9 +66,7 @@ class Runner:
         assert isinstance(outcome, Answer | Refusal)
         run = Observed(outcome=outcome, retrieved=[], seconds=round(time.time() - started, 2))
         run.retrieved = list(dict.fromkeys(b for chunk in chunks for b in self.corpus.locate(chunk.content)))
-        run.groundedness = (
-            await asyncio.to_thread(self.score, case.question, outcome) if isinstance(outcome, Answer) else None
-        )
+        run.groundedness = await asyncio.to_thread(self.score, outcome) if isinstance(outcome, Answer) else None
         return run
 
     async def attempt(self, case: Case, pauses: tuple[int, ...] = PAUSES) -> Observed | str:
@@ -70,9 +74,10 @@ class Runner:
             try:
                 return await self.observe(case)
             except (AgentFrameworkException, AzureError, ValueError, RuntimeError) as error:
-                if not (pauses and throttled(error)):
+                if not (pauses and retried(error)):
                     detail = HOST.sub("<host>", " ".join(str(error).split()))[:200]
                     return f"{case.question}: {type(error).__name__}: {detail}"
+                print(f"{type(error.__cause__).__name__}, retry in {pauses[0]} s: {case.question}", file=sys.stderr)
         await asyncio.sleep(pauses[0])
         return await self.attempt(case, pauses[1:])
 

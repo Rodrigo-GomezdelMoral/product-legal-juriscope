@@ -10,7 +10,7 @@ from app.config import SharedBase
 from app.models import ArticleVersion, Citation, Draft, LegalQuery
 
 PROMPTS = Path(__file__).resolve().parent / "prompts"
-ANALYST = (PROMPTS / "analyst_v3.md").read_text(encoding="utf-8")
+ANALYST = (PROMPTS / "analyst_v5.md").read_text(encoding="utf-8")
 COUNSEL = (PROMPTS / "counsel_v4.md").read_text(encoding="utf-8")
 TIMEOUT_SECONDS = 60
 EFFORT = "low"
@@ -34,11 +34,11 @@ def options(response_format: type[BaseModel], max_tokens: int) -> dict[str, Any]
 
 
 def analyst(client: SupportsChatGetResponse[Any]) -> Agent:
-    return Agent(client, ANALYST, name="analyst", default_options=options(LegalQuery, 800))
+    return Agent(client, ANALYST, name="analyst", default_options=options(LegalQuery, 1600))
 
 
 def counsel(client: SupportsChatGetResponse[Any]) -> Agent:
-    return Agent(client, COUNSEL, name="counsel", default_options=options(Draft, 3000))
+    return Agent(client, COUNSEL, name="counsel", default_options=options(Draft, 4000))
 
 
 def article(citation: Citation, version: ArticleVersion, label: str) -> str:

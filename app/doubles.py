@@ -14,7 +14,9 @@ Reply = BaseModel | Exception | str
 
 def default(response_format: type[BaseModel], last: str) -> BaseModel:
     if response_format is LegalQuery:
-        return LegalQuery(question=last, scope="criminal_code", search_queries=[last], facts_date=None, language="es")
+        return LegalQuery(
+            left_out=[], question=last, scope="criminal_code", search_queries=[last], facts_date=None, language="es"
+        )
     ids = list(dict.fromkeys(ARTICLE_ID.findall(last)))[:2]
     return Draft(claims=[Claim(text=f"El artículo con id {i} es aplicable.", article_ids=[i]) for i in ids])
 
