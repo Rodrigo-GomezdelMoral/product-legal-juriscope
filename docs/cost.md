@@ -43,8 +43,8 @@ The 5xx metric alert rule (one time series) is not priced here. Phase 7 reads it
 
 ## One-off
 
-- **Full Layout indexing:** about 1.82 € per environment (207 pages at 8.80 € per 1,000), plus about 0.01 € of embeddings. It is
-  repeated only when the PDF changes.
+- **Full indexing:** about 0.01 € of embeddings per environment; the indexer's PDF text extraction is free (no Layout skill, ADR-003).
+  It is repeated only when the PDF changes.
 - **Full load test:** about 2–4 € of semantic queries, plus about 0.25 € for the real-model scenario.
 
 ## Shared base

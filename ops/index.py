@@ -18,16 +18,13 @@ BATCH = 100
 WAIT_POLLS = 80
 TARGETS = {"local": "local", "staging": "stg", "production": "prod"}
 AI_SERVICES = {"@odata.type": "#Microsoft.Azure.Search.AIServicesByIdentity", "identity": None}
-LAYOUT = "/document/markdown_document/*"
-PAGES = f"{LAYOUT}/textItems/*"
+PAGES = "/document/textItems/*"
 SKILLS = {
-    "Util.DocumentIntelligenceLayoutSkill": ("/document", "file_data", "/document/file_data", "markdown_document"),
-    "Text.SplitSkill": (LAYOUT, "text", f"{LAYOUT}/content", "textItems"),
+    "Text.SplitSkill": ("/document", "text", "/document/content", "textItems"),
     "Text.AzureOpenAIEmbeddingSkill": (PAGES, "text", PAGES, "embedding"),
 }
-MARKDOWN = {"outputMode": "oneToMany", "outputFormat": "markdown", "markdownHeaderDepth": "h3"}
 SPLIT = {"textSplitMode": "pages", "maximumPageLength": 2000, "pageOverlapLength": 500}
-PROJECTED = {"content": PAGES, "headings": f"{LAYOUT}/sections/h3", "content_vector": f"{PAGES}/embedding"}
+PROJECTED = {"content": PAGES, "content_vector": f"{PAGES}/embedding"}
 SOFT_DELETE = {"@odata.type": "#Microsoft.Azure.Search.NativeBlobSoftDeleteDeletionDetectionPolicy"}
 
 
@@ -87,10 +84,10 @@ def articles(corpus: Corpus) -> list[dict[str, Any]]:
     ]
 
 
-def layout(short: str, settings: SharedBase, storage_id: str) -> list[tuple[str, dict[str, Any]]]:
+def enrichment(short: str, settings: SharedBase, storage_id: str) -> list[tuple[str, dict[str, Any]]]:
     model, account = settings.embedding_model, settings.foundry_account_endpoint
     embedding = {"resourceUri": account, "deploymentId": model, "modelName": model, "dimensions": 1536}
-    options: list[dict[str, Any]] = [MARKDOWN, SPLIT, embedding]
+    options: list[dict[str, Any]] = [SPLIT, embedding]
     skills = [
         {"@odata.type": f"#Microsoft.Skills.{kind}", "context": context}
         | {"inputs": [{"name": i, "source": source}], "outputs": [{"name": output}]}
@@ -104,13 +101,13 @@ def layout(short: str, settings: SharedBase, storage_id: str) -> list[tuple[str,
     connection = {"connectionString": f"ResourceId={storage_id};"}
     source = dict(name=corpus, type="azureblob", container={"name": "corpus"}, credentials=connection)
     services = AI_SERVICES | {"subdomainUrl": account}
-    files = {"configuration": {"allowSkillsetToReadFileData": True}}
+    text = {"configuration": {"dataToExtract": "contentAndMetadata"}}
     return [
         ("datasources", source | {"dataDeletionDetectionPolicy": SOFT_DELETE}),
         ("skillsets", dict(name=skillset, skills=skills, indexProjections=projections, cognitiveServices=services)),
         (
             "indexers",
-            dict(name=indexer, dataSourceName=corpus, skillsetName=skillset, targetIndexName=target, parameters=files),
+            dict(name=indexer, dataSourceName=corpus, skillsetName=skillset, targetIndexName=target, parameters=text),
         ),
     ]
 
@@ -134,7 +131,9 @@ async def push(http: httpx.AsyncClient, name: str, settings: SharedBase, credent
 
 async def crawl(http: httpx.AsyncClient, objects: list[tuple[str, dict[str, Any]]]) -> str:
     for collection, body in objects:
-        (await http.put(f"/{collection}/{body['name']}", json=body)).raise_for_status()
+        response = await http.put(f"/{collection}/{body['name']}", json=body)
+        if response.is_error:
+            raise RuntimeError(f"{collection}/{body['name']}: {response.status_code} {response.text}")
     indexer = objects[-1][1]["name"]
     if (await http.post(f"/indexers/{indexer}/run")).status_code not in (HTTPStatus.ACCEPTED, HTTPStatus.CONFLICT):
         raise RuntimeError(f"{indexer} did not start")
@@ -160,7 +159,7 @@ async def build(target: str, settings: SharedBase, storage_id: str | None) -> st
             (await http.put(f"/indexes/{name}", json=index(name, settings))).raise_for_status()
             if target == "local":
                 return f"{name}: {await push(http, name, settings, credential)}"
-            return await crawl(http, layout(short, settings, storage_id or ""))
+            return await crawl(http, enrichment(short, settings, storage_id or ""))
 
 
 def main() -> None:

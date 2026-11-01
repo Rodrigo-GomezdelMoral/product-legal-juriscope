@@ -12,7 +12,7 @@ graph LR
     RT --> STORE[("data/boe/articles.json · versions, in the image")]
     CA --> COSMOS[("cosmos-juriscope-env-swc · history and conversations")]
     AN & DR --> FDRY["proj-aiplatform-shared · Sweden Central"]
-    BLOB[("stjuriscopeenvswc · corpus · PDF in parts")] --> IDXR["indexer · Layout skill · embeddings"] --> SRCH
+    BLOB[("stjuriscopeenvswc · corpus · PDF in parts")] --> IDXR["indexer · text extraction · split · embeddings"] --> SRCH
     CA --> KV[("kv-juriscope-env-swc · client secret")]
     CA --> APPI["appi-juriscope-env-swc"] --> LAW[("log-aiplatform-shared-swc")]
 ```
