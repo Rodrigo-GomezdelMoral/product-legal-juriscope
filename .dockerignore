@@ -1,0 +1,12 @@
+*
+!app/
+!data/boe/
+!requirements.txt
+!web/package.json
+!web/package-lock.json
+!web/index.html
+!web/tsconfig.json
+!web/vite.config.ts
+!web/public/
+!web/src/
+**/__pycache__

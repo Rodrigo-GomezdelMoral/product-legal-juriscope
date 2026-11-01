@@ -26,6 +26,13 @@ jobs:
       - run: make install
       - name: Lint, format, types, tests and budget
         run: make check
+      - name: Bicep build and lint, with every warning failing the job
+        run: |
+          az bicep install --only-show-errors
+          out="$(az bicep lint --file infra/main.bicep 2>&1)"
+          echo "$out"
+          test -z "$out"
+          az bicep build --file infra/main.bicep --stdout > /dev/null
       - uses: actions/setup-node@v7
         with:
           node-version: "24"

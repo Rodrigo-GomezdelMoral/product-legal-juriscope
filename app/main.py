@@ -29,6 +29,7 @@ from app.auth import User, signed_in
 from app.config import Settings
 from app.conversations import Conversations, emulator
 from app.corpus import DATA, Corpus
+from app.doubles import ModelDouble
 from app.models import Answer, Conversation, ConversationSummary, Feedback, PhaseEvent, Question, Refusal, Turn
 from app.retrieval import SearchRetriever, SearchUnavailableError
 from app.workflow import Juriscope, UnusableReplyError, throttled
@@ -72,7 +73,8 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
         database = await emulator(cosmos, name) if settings.cosmos_key else cosmos.get_database_client(name)
         history = CosmosHistoryProvider(container_client=database.get_container_client("history"))
         retriever = SearchRetriever(settings.search_endpoint, settings.search_index, credential)
-        juriscope = Juriscope(chat_client(settings, credential), retriever.search, corpus, history, settings.chat_model)
+        client = ModelDouble() if settings.model_double else chat_client(settings, credential)
+        juriscope = Juriscope(client, retriever.search, corpus, history, settings.chat_model)
         meta = {"updated": updated, "chat_model": settings.chat_model, "embedding_model": settings.embedding_model}
         conversations = Conversations(database.get_container_client("conversations"))
         app.state.services = Services(juriscope, conversations, history.clear, meta | {"notice": NOTICE})

@@ -1,0 +1,163 @@
+name: release
+
+on:
+  release:
+    types: [published]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: production
+  cancel-in-progress: false
+
+jobs:
+  verify:
+    if: github.event_name == 'release' || startsWith(github.ref, 'refs/tags/v')
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    permissions:
+      contents: read
+      actions: read
+      statuses: read
+    outputs:
+      digest: ${{ steps.digest.outputs.digest }}
+      sha: ${{ steps.digest.outputs.sha }}
+    steps:
+      - id: digest
+        name: Digest that deploy.yml built for the tag's commit, which passed the load test in staging
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ github.event.release.tag_name || github.ref_name }}
+        run: |
+          sha="$(gh api "repos/$GITHUB_REPOSITORY/commits/$TAG" --jq .sha)"
+          run="$(gh run list -R "$GITHUB_REPOSITORY" --workflow deploy.yml --commit "$sha" --status success --json databaseId --jq '.[0].databaseId')"
+          test -n "$run"
+          gh run download "$run" -R "$GITHUB_REPOSITORY" -n "image-$sha" -D artifact
+          digest="$(cat artifact/digest.txt)"
+          load="$(gh api "repos/$GITHUB_REPOSITORY/commits/$sha/status" --jq '[.statuses[] | select(.context == "load-test")][0] | "\(.state) \(.description)"')"
+          echo "$TAG: deploy.yml run $run, load-test $load"
+          [[ "$load" == "success "*"$digest"* ]]
+          { echo "digest=$digest"; echo "sha=$sha"; } >> "$GITHUB_OUTPUT"
+
+  promote:
+    needs: verify
+    runs-on: ubuntu-24.04
+    timeout-minutes: 60
+    environment: production
+    permissions:
+      contents: read
+      id-token: write
+    env:
+      RG: rg-juriscope-prod-swc
+      APP: ca-juriscope-prod-spc
+      APPI: appi-juriscope-prod-swc
+      PARAMS: infra/main.production.bicepparam
+      IMAGE_DIGEST: ${{ needs.verify.outputs.digest }}
+      TAG: ${{ github.event.release.tag_name || github.ref_name }}
+      REGISTRY_LOGIN_SERVER: ${{ vars.REGISTRY_LOGIN_SERVER }}
+      FOUNDRY_PROJECT_ENDPOINT: ${{ vars.FOUNDRY_PROJECT_ENDPOINT }}
+      FOUNDRY_ACCOUNT_ENDPOINT: ${{ vars.FOUNDRY_ACCOUNT_ENDPOINT }}
+      SEARCH_ENDPOINT: ${{ vars.SEARCH_ENDPOINT }}
+      SEARCH_INDEX: jur-articles-prod
+      CHAT_MODEL: ${{ vars.CHAT_MODEL }}
+      EMBEDDING_MODEL: ${{ vars.EMBEDDING_MODEL }}
+      AUTH_CLIENT_ID: ${{ vars.AUTH_CLIENT_ID }}
+      AUTH_CLIENT_SECRET: ${{ secrets.AUTH_CLIENT_SECRET }}
+      ALERT_EMAIL_ADDRESS: ${{ secrets.ALERT_EMAIL_ADDRESS }}
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: ${{ needs.verify.outputs.sha }}
+          persist-credentials: false
+      - uses: azure/login@v3
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+      - name: What-if, then deploy the digest as revision v<major>-<minor>-<patch> behind the canary label
+        run: |
+          az config set extension.use_dynamic_install=yes_without_prompt --only-show-errors
+          stable=""
+          if az containerapp show -n "$APP" -g "$RG" -o none 2>/dev/null; then
+            stable="$(az containerapp revision list -n "$APP" -g "$RG" --query "[?properties.trafficWeight > \`0\`].name | [0]" -o tsv)"
+          fi
+          suffix="$(tr '.' '-' <<< "$TAG")"
+          [ "$GITHUB_RUN_ATTEMPT" = "1" ] || suffix="$suffix-a$GITHUB_RUN_ATTEMPT"
+          export STABLE_REVISION="$stable" REVISION_SUFFIX="$suffix"
+          az deployment group what-if -g "$RG" -p "$PARAMS" --result-format ResourceIdOnly --only-show-errors
+          out="$(az deployment group create -g "$RG" -n "juriscope-$suffix" -p "$PARAMS" --query properties.outputs -o json --only-show-errors)"
+          fqdn="$(jq -r .fqdn.value <<< "$out")"
+          echo "::add-mask::$fqdn"
+          echo "::add-mask::${fqdn#*.}"
+          {
+            echo "STABLE_REVISION=$stable"; echo "FQDN=$fqdn"; echo "NEW=$(jq -r .revision.value <<< "$out")"
+            echo "CORPUS_ACCOUNT_URL=$(jq -r .corpusAccountUrl.value <<< "$out")"; echo "STORAGE_ID=$(jq -r .storageId.value <<< "$out")"
+          } >> "$GITHUB_ENV"
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: requirements*.txt
+      - run: python -m pip install --quiet -r requirements-dev.txt
+      - name: Sign in again, since the federated token expires after minutes
+        uses: azure/login@v3
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+      - name: Corpus parts and the Layout index, a no-op when the PDF has not changed, retried while new roles propagate
+        run: |
+          for attempt in 1 2 3; do
+            python -m ops.corpus --account-url "$CORPUS_ACCOUNT_URL" && python -m ops.index --target production --storage-id "$STORAGE_ID" && exit 0
+            sleep 300
+          done
+          exit 1
+      - name: Sign in again before the canary
+        uses: azure/login@v3
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+      - name: Health check and smoke test on the canary label, as the production CI principal
+        run: |
+          canary="$APP---canary.${FQDN#*.}"
+          curl -fsS -o /dev/null --retry 18 --retry-delay 10 --retry-all-errors "https://$canary/healthz"
+          token="$(az account get-access-token --resource "api://$AUTH_CLIENT_ID" --query accessToken -o tsv)"
+          echo "::add-mask::$token"
+          curl -fsS -o /dev/null -w "/api/meta %{http_code} %{time_total} s\n" -H "Authorization: Bearer $token" "https://$canary/api/meta"
+      - name: Canary at 10 % for ten minutes
+        if: env.STABLE_REVISION != '' && env.STABLE_REVISION != env.NEW
+        run: |
+          az containerapp ingress traffic set -n "$APP" -g "$RG" --revision-weight "$NEW=10" "$STABLE_REVISION=90" -o none
+          echo "CANARY_START=$(date -u +%Y-%m-%dT%H:%M:%SZ)" >> "$GITHUB_ENV"
+          sleep 720
+      - name: Sign in again, since the federated token expires after minutes
+        if: env.STABLE_REVISION != '' && env.STABLE_REVISION != env.NEW
+        uses: azure/login@v3
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+      - name: The canary's 5xx rate and p95 in Application Insights
+        if: env.STABLE_REVISION != '' && env.STABLE_REVISION != env.NEW
+        run: |
+          query="requests | where timestamp > datetime($CANARY_START) and cloud_RoleInstance startswith '$NEW'
+            | summarize total = count(), failed = countif(toint(resultCode) >= 500), p95 = percentile(duration, 95)"
+          row="$(az monitor app-insights query -g "$RG" --app "$APPI" --analytics-query "$query" --query "tables[0].rows[0]" -o tsv)"
+          read -r total failed p95 <<< "$row"
+          echo "canary: $total requests, $failed with 5xx, p95 ${p95:-n/a} ms" | tee -a "$GITHUB_STEP_SUMMARY"
+          awk -v t="${total:-0}" -v f="${failed:-0}" -v p="${p95:-0}" 'BEGIN { exit !(f <= 0.01 * t && (t < 20 || p < 6000)) }'
+      - name: Promote to 100 % and deactivate the previous revision
+        if: env.STABLE_REVISION != '' && env.STABLE_REVISION != env.NEW
+        run: |
+          az containerapp ingress traffic set -n "$APP" -g "$RG" --revision-weight "$NEW=100" "$STABLE_REVISION=0" -o none
+          az containerapp revision deactivate -n "$APP" -g "$RG" --revision "$STABLE_REVISION" -o none
+          echo "Promoted \`$IMAGE_DIGEST\` to production as \`${NEW##*--}\`" >> "$GITHUB_STEP_SUMMARY"
+      - name: Roll back to the previous revision
+        if: failure() && env.NEW != '' && env.STABLE_REVISION != '' && env.STABLE_REVISION != env.NEW
+        run: |
+          az containerapp revision activate -n "$APP" -g "$RG" --revision "$STABLE_REVISION" -o none
+          az containerapp ingress traffic set -n "$APP" -g "$RG" --revision-weight "$STABLE_REVISION=100" "$NEW=0" -o none
+          az containerapp revision deactivate -n "$APP" -g "$RG" --revision "$NEW" -o none

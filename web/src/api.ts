@@ -23,6 +23,7 @@ export const answered = (outcome: Answer | Refusal): outcome is Answer => "text"
 async function checked(path: string, init?: RequestInit): Promise<Response> {
   const response = await fetch(path, init);
   if (response.ok) return response;
+  if (response.status === 401) location.assign("/.auth/login/aad?post_login_redirect_uri=/");
   const body = await response.json().catch(() => ({}));
   throw new Error(typeof body.detail === "string" ? body.detail : `The request failed with status ${response.status}.`);
 }

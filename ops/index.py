@@ -1,18 +1,34 @@
 import argparse
 import asyncio
 from datetime import date
+from http import HTTPStatus
 from typing import Any
 
 import httpx
 from agent_framework.foundry import FoundryEmbeddingClient
+from azure.core.credentials_async import AsyncTokenCredential
 from azure.identity.aio import DefaultAzureCredential
 
-from app.config import Settings
+from app.config import SharedBase
 from app.corpus import Corpus
 
 API_VERSION = "2026-04-01"
 SEARCH_SCOPE = "https://search.azure.com/.default"
 BATCH = 100
+WAIT_POLLS = 80
+TARGETS = {"local": "local", "staging": "stg", "production": "prod"}
+AI_SERVICES = {"@odata.type": "#Microsoft.Azure.Search.AIServicesByIdentity", "identity": None}
+LAYOUT = "/document/markdown_document/*"
+PAGES = f"{LAYOUT}/textItems/*"
+SKILLS = {
+    "Util.DocumentIntelligenceLayoutSkill": ("/document", "file_data", "/document/file_data", "markdown_document"),
+    "Text.SplitSkill": (LAYOUT, "text", f"{LAYOUT}/content", "textItems"),
+    "Text.AzureOpenAIEmbeddingSkill": (PAGES, "text", PAGES, "embedding"),
+}
+MARKDOWN = {"outputMode": "oneToMany", "outputFormat": "markdown", "markdownHeaderDepth": "h3"}
+SPLIT = {"textSplitMode": "pages", "maximumPageLength": 2000, "pageOverlapLength": 500}
+PROJECTED = {"content": PAGES, "headings": f"{LAYOUT}/sections/h3", "content_vector": f"{PAGES}/embedding"}
+SOFT_DELETE = {"@odata.type": "#Microsoft.Azure.Search.NativeBlobSoftDeleteDeletionDetectionPolicy"}
 
 
 SEMANTIC = {
@@ -29,7 +45,7 @@ SEMANTIC = {
 }
 
 
-def index(name: str, settings: Settings) -> dict[str, Any]:
+def index(name: str, settings: SharedBase) -> dict[str, Any]:
     text = {"type": "Edm.String", "searchable": True, "analyzer": "es.microsoft"}
     vectorizer = {
         "resourceUri": settings.foundry_account_endpoint,
@@ -71,35 +87,88 @@ def articles(corpus: Corpus) -> list[dict[str, Any]]:
     ]
 
 
-async def push_local(settings: Settings) -> int:
-    name, documents = "jur-articles-local", articles(Corpus.load())
+def layout(short: str, settings: SharedBase, storage_id: str) -> list[tuple[str, dict[str, Any]]]:
+    model, account = settings.embedding_model, settings.foundry_account_endpoint
+    embedding = {"resourceUri": account, "deploymentId": model, "modelName": model, "dimensions": 1536}
+    options: list[dict[str, Any]] = [MARKDOWN, SPLIT, embedding]
+    skills = [
+        {"@odata.type": f"#Microsoft.Skills.{kind}", "context": context}
+        | {"inputs": [{"name": i, "source": source}], "outputs": [{"name": output}]}
+        | extra
+        for (kind, (context, i, source, output)), extra in zip(SKILLS.items(), options, strict=True)
+    ]
+    target, corpus, skillset, indexer = (f"jur-{kind}-{short}" for kind in ("articles", "corpus", "layout", "indexer"))
+    mappings = [{"name": name, "source": source} for name, source in PROJECTED.items()]
+    selector = dict(targetIndexName=target, parentKeyFieldName="parent_id", sourceContext=PAGES, mappings=mappings)
+    projections = {"selectors": [selector], "parameters": {"projectionMode": "skipIndexingParentDocuments"}}
+    connection = {"connectionString": f"ResourceId={storage_id};"}
+    source = dict(name=corpus, type="azureblob", container={"name": "corpus"}, credentials=connection)
+    services = AI_SERVICES | {"subdomainUrl": account}
+    files = {"configuration": {"allowSkillsetToReadFileData": True}}
+    return [
+        ("datasources", source | {"dataDeletionDetectionPolicy": SOFT_DELETE}),
+        ("skillsets", dict(name=skillset, skills=skills, indexProjections=projections, cognitiveServices=services)),
+        (
+            "indexers",
+            dict(name=indexer, dataSourceName=corpus, skillsetName=skillset, targetIndexName=target, parameters=files),
+        ),
+    ]
+
+
+async def push(http: httpx.AsyncClient, name: str, settings: SharedBase, credential: AsyncTokenCredential) -> str:
+    documents = articles(Corpus.load())
+    embeddings = FoundryEmbeddingClient(
+        project_endpoint=settings.foundry_project_endpoint, model=settings.embedding_model, credential=credential
+    )
+    for start in range(0, len(documents), BATCH):
+        batch = documents[start : start + BATCH]
+        vectors = await embeddings.get_embeddings([document["content"] for document in batch])
+        for document, vector in zip(batch, vectors, strict=True):
+            document["content_vector"] = vector.vector
+        response = (await http.post(f"/indexes/{name}/docs/index", json={"value": batch})).raise_for_status()
+        failed = [item["key"] for item in response.json()["value"] if not item["status"]]
+        if failed:
+            raise RuntimeError(f"{len(failed)} documents were not indexed, first {failed[0]}")
+    return f"{len(documents)} documents"
+
+
+async def crawl(http: httpx.AsyncClient, objects: list[tuple[str, dict[str, Any]]]) -> str:
+    for collection, body in objects:
+        (await http.put(f"/{collection}/{body['name']}", json=body)).raise_for_status()
+    indexer = objects[-1][1]["name"]
+    if (await http.post(f"/indexers/{indexer}/run")).status_code not in (HTTPStatus.ACCEPTED, HTTPStatus.CONFLICT):
+        raise RuntimeError(f"{indexer} did not start")
+    for _ in range(WAIT_POLLS):
+        await asyncio.sleep(15)
+        result = (await http.get(f"/indexers/{indexer}/status")).raise_for_status().json()["lastResult"] or {}
+        if result.get("status") not in (None, "inProgress"):
+            break
+    if result.get("status") != "success" or result.get("itemsFailed"):
+        raise RuntimeError(f"{indexer}: {result.get('status')}, {result.get('errorMessage') or result.get('errors')}")
+    return f"{indexer}: {result['itemsProcessed']} parts processed, {result['itemsFailed']} failed"
+
+
+async def build(target: str, settings: SharedBase, storage_id: str | None) -> str:
+    short = TARGETS[target]
+    name = f"jur-articles-{short}"
     async with DefaultAzureCredential() as credential:
         token = await credential.get_token(SEARCH_SCOPE)
-        embeddings = FoundryEmbeddingClient(
-            project_endpoint=settings.foundry_project_endpoint, model=settings.embedding_model, credential=credential
-        )
         headers, params = {"Authorization": f"Bearer {token.token}"}, {"api-version": API_VERSION}
         async with httpx.AsyncClient(
             base_url=settings.search_endpoint, headers=headers, params=params, timeout=60
         ) as http:
             (await http.put(f"/indexes/{name}", json=index(name, settings))).raise_for_status()
-            for start in range(0, len(documents), BATCH):
-                batch = documents[start : start + BATCH]
-                vectors = await embeddings.get_embeddings([document["content"] for document in batch])
-                for document, vector in zip(batch, vectors, strict=True):
-                    document["content_vector"] = vector.vector
-                response = (await http.post(f"/indexes/{name}/docs/index", json={"value": batch})).raise_for_status()
-                failed = [item["key"] for item in response.json()["value"] if not item["status"]]
-                if failed:
-                    raise RuntimeError(f"{len(failed)} documents were not indexed, first {failed[0]}")
-    return len(documents)
+            if target == "local":
+                return f"{name}: {await push(http, name, settings, credential)}"
+            return await crawl(http, layout(short, settings, storage_id or ""))
 
 
 def main() -> None:
     parser = argparse.ArgumentParser(description="Create a Juriscope search index and fill it.")
-    parser.add_argument("--target", choices=["local"], required=True)
-    parser.parse_args()
-    print(f"jur-articles-local: {asyncio.run(push_local(Settings()))} documents")
+    parser.add_argument("--target", choices=list(TARGETS), required=True)
+    parser.add_argument("--storage-id", help="resource id of the environment's storage account (not for local)")
+    args = parser.parse_args()
+    print(asyncio.run(build(args.target, SharedBase(), args.storage_id)))
 
 
 if __name__ == "__main__":

@@ -1,0 +1,129 @@
+name: load-test
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: staging
+  cancel-in-progress: false
+
+jobs:
+  locust:
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 90
+    environment: staging
+    permissions:
+      contents: read
+      id-token: write
+      statuses: write
+    env:
+      RG: rg-juriscope-stg-swc
+      APP: ca-juriscope-stg-spc
+      AUTH_CLIENT_ID: ${{ vars.AUTH_CLIENT_ID }}
+      GH_TOKEN: ${{ github.token }}
+      LOCUST: locust -f load/locustfile.py --headless --only-summary --exit-code-on-error 0
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.12"
+      - name: Install Locust at the pinned version
+        run: grep '^locust==' requirements-dev.txt | xargs python -m pip install --quiet
+      - uses: azure/login@v3
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+      - name: A revision of the staging digest with the model double, labelled loadtest, at 0 % of traffic
+        run: |
+          az config set extension.use_dynamic_install=yes_without_prompt --only-show-errors
+          stable="$(az containerapp revision list -n "$APP" -g "$RG" --query "[?properties.trafficWeight > \`0\`].name | [0]" -o tsv)"
+          test -n "$stable"
+          fqdn="$(az containerapp show -n "$APP" -g "$RG" --query properties.configuration.ingress.fqdn -o tsv)"
+          echo "::add-mask::$fqdn"
+          echo "::add-mask::${fqdn#*.}"
+          suffix="load$GITHUB_RUN_NUMBER-$GITHUB_RUN_ATTEMPT"
+          az containerapp update -n "$APP" -g "$RG" --revision-suffix "$suffix" --set-env-vars MODEL_DOUBLE=true -o none
+          az containerapp revision label add -n "$APP" -g "$RG" --label loadtest --revision "$APP--$suffix" --no-prompt -o none
+          image="$(az containerapp revision show -n "$APP" -g "$RG" --revision "$stable" --query "properties.template.containers[0].image" -o tsv)"
+          { echo "STABLE=$stable"; echo "LOAD=$APP--$suffix"; echo "FQDN=$fqdn"; echo "LOADTEST=$APP---loadtest.${fqdn#*.}"; echo "TESTED=${image##*@}"; } >> "$GITHUB_ENV"
+          echo "START=$(date -u +%Y-%m-%dT%H:%M:%SZ)" >> "$GITHUB_ENV"
+      - name: Sign in again after the revision has started
+        uses: azure/login@v3
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+      - name: Normal, peak and soak with the model double
+        run: |
+          LOAD_TOKEN="$(az account get-access-token --resource "api://$AUTH_CLIENT_ID" --query accessToken -o tsv)"
+          echo "::add-mask::$LOAD_TOKEN"
+          export LOAD_TOKEN
+          mkdir -p results
+          curl -fsS -o /dev/null --retry 18 --retry-delay 10 --retry-all-errors "https://$LOADTEST/healthz"
+          for scenario in normal peak soak; do
+            LOAD_SCENARIO=$scenario $LOCUST --host "https://$LOADTEST" --csv "results/$scenario" --html "results/$scenario.html"
+          done
+      - name: Sign in again, since the federated token expires after minutes
+        uses: azure/login@v3
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+      - name: Stress with the model double until errors pass 5 %
+        run: |
+          LOAD_TOKEN="$(az account get-access-token --resource "api://$AUTH_CLIENT_ID" --query accessToken -o tsv)"
+          echo "::add-mask::$LOAD_TOKEN"
+          export LOAD_TOKEN
+          LOAD_SCENARIO=stress $LOCUST --host "https://$LOADTEST" --csv results/stress --html results/stress.html
+          echo "END=$(date -u +%Y-%m-%dT%H:%M:%SZ)" >> "$GITHUB_ENV"
+      - name: Sign in again before the real model
+        uses: azure/login@v3
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+      - name: Two minutes at three users on the real model, through the stable revision (SLA-02)
+        run: |
+          LOAD_TOKEN="$(az account get-access-token --resource "api://$AUTH_CLIENT_ID" --query accessToken -o tsv)"
+          echo "::add-mask::$LOAD_TOKEN"
+          export LOAD_TOKEN
+          LOAD_SCENARIO=real $LOCUST --host "https://$FQDN" --csv results/real --html results/real.html
+      - name: Replicas, CPU and memory during the run
+        run: |
+          app="$(az containerapp show -n "$APP" -g "$RG" --query id -o tsv)"
+          az monitor metrics list --resource "$app" --metric Replicas UsageNanoCores WorkingSetBytes --aggregation Maximum --interval PT1M \
+            --start-time "$START" --query "value[].[name.value, max(timeseries[].data[].maximum)]" -o tsv | tee results/platform.tsv
+      - name: Check SLA-02 and the error rates, and set the load-test status on the tested commit
+        run: |
+          row() { awk -F, -v n="$2" '$2 == n { print $3, $4, $17 }' "results/$1_stats.csv"; }
+          read -r real_n real_failed real_p95 <<< "$(row real ask)"
+          summary="| $(date -u +%F) | real model: $real_n asks, p95 $real_p95 ms, $real_failed failed |"
+          state=success
+          [ "$real_n" -gt 0 ] && [ "$real_p95" -lt 8000 ] && [ "$real_failed" -le $(( real_n / 100 )) ] || state=failure
+          for scenario in normal peak soak; do
+            read -r n failed p95 <<< "$(row $scenario ask)"
+            summary="$summary $scenario: $n asks, p95 $p95 ms, $failed failed |"
+            [ "$failed" -le $(( n / 100 )) ] || state=failure
+          done
+          echo "$summary" | tee -a "$GITHUB_STEP_SUMMARY"
+          gh api "repos/$GITHUB_REPOSITORY/statuses/$GITHUB_SHA" -f state="$state" -f context=load-test \
+            -f description="p95 $real_p95 ms (SLA 8000) for $TESTED" --silent
+          [ "$state" = success ]
+      - name: Remove the loadtest revision
+        if: always() && env.LOAD != ''
+        run: |
+          az containerapp revision label remove -n "$APP" -g "$RG" --label loadtest -o none || true
+          az containerapp revision deactivate -n "$APP" -g "$RG" --revision "$LOAD" -o none
+      - uses: actions/upload-artifact@v7
+        if: always()
+        with:
+          name: load-test-results
+          path: results/
+          retention-days: 30
