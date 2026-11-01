@@ -265,6 +265,29 @@ phase closes and how each will be demonstrated (a test and, from phase 7, a live
   one transient `APIConnectionError`, which the gate does not retry. Both are open for the author. v4 is the baseline.
   `test_agents_run_the_latest_prompts` holds that each agent loads its newest prompt file, and
   `test_counsel_chooses_the_fewest_articles` the v4 rule. Completeness is not measured (golden `facts` are not scored).
+- **Second fix of the required `eval` check (approved 2026-10-31): `analyst_v4.md`, `analyst_v5.md` and code.** CI failed on
+  groundedness 0.891 with one `APIConnectionError`, then on canary 1 of 15. Diagnosis (probe, 1 of 3): *Analyst* v3 copied the
+  whole question, injection included, into `question`; *Counsel* wrote the phrase into a claim; verification checked only
+  article ids. Fixes:
+  - `LegalQuery.left_out` lists the passages that are not the legal question. Validation removes them from `question`
+    (longest first, word boundaries, any spacing or quote style, passages under 4 characters skipped); an empty question
+    becomes `not_legal`. `language` is two lowercase letters, checked in code (Learn lists `pattern` as unsupported in
+    structured outputs).
+  - `Claim.verified` also drops a claim that shares an 8-character squashed run with a `left_out` passage when the run
+    touches a word in neither the Code (`Corpus.words`, every version and title) nor the restated question.
+    `LegalQuery.within` keeps only the passages found in the lawyer's latest message: a probe showed *Analyst* v4 copying its
+    own instructions into `left_out`, which dropped true English claims and pushed false refusal to 4 of 72.
+  - The judge reads `Answer.question` (the restatement, excluded from the JSON). The runner retries `APIConnectionError`
+    (not timeouts) like throttling and logs each retry; the API already mapped it to 503.
+  - Caps: *Analyst* 800 → 1,600, *Counsel* 3,000 → 4,000 (truncated JSON in live runs; only tokens produced are billed).
+  - Figures: PR suites 23:03, 23:05 and 23:06 UTC: passed, passed, failed on recall 0.833 (6; article 249 for
+    "estafa básica" outside the first five); every other metric perfect, groundedness 0.986 to 1.000, canary 0. Full suite
+    23:24 UTC: recall 0.950 (60), citation precision 1.000 (59), groundedness 0.994 (84), version 1.000, correct refusal
+    1.000, false refusal 0.013 (75, the guardrail on intimate images), canary 0 of 15, errors 0, p50 6.3 s; the gate passes.
+    Recall sits between v4's 0.933 and v3's 0.966, the evidence that v5's queries are no worse. This column is the baseline.
+  - Review (subagent): 2 high, 2 medium and 5 low findings; all fixed except `left_out` covering earlier turns (low, left).
+  - Open for the 04 audit: the PR gate's six recall and six citation cases fail it on one miss; options are re-running a
+    failing case once before failing, or larger PR suites. English answers sometimes come back in Spanish (no threshold).
 - **API (`app/main.py`).** FastAPI's own SSE (`fastapi.sse.EventSourceResponse`, `ServerSentEvent`). The `start` dependency runs the
   ownership check and pulls events until *Analyst* has replied, so failures there are real HTTP statuses; after the first byte an
   `error` event carries the same RFC 9457 body and the request span is marked failed. Mapping: rate limit (`RateLimitError`, or
@@ -298,6 +321,9 @@ phase closes and how each will be demonstrated (a test and, from phase 7, a live
   (phase 7 checks trace ids in Application Insights).
 - **Python module limits:** `app/main.py` is 187 non-blank lines against its 140: problem responses for three dependencies on both
   sides of the first byte, and the pre-stream buffering. `app/workflow.py` is at 143 against 140. Totals stay within budget.
+  After the second `eval` fix: `app/models.py` 110 against 80 (the `left_out` removal, the claim check and `within`),
+  `app/corpus.py` 91 against 90, `app/doubles.py` 36 against 35, `eval/run.py` 119 against 85; moving the text checks to their
+  own module is left for the 04 audit, because it would change code after the measured runs.
 
 ## Verified names (installed wheels, 2026-10-30)
 
