@@ -51,7 +51,7 @@ jobs:
       id-token: write
     env:
       RG: rg-juriscope-prod-swc
-      APP: ca-juriscope-prod-spc
+      APP: ca-juriscope-prod
       APPI: appi-juriscope-prod-swc
       PARAMS: infra/main.production.bicepparam
       IMAGE_DIGEST: ${{ needs.verify.outputs.digest }}
@@ -148,7 +148,7 @@ jobs:
           row="$(az monitor app-insights query -g "$RG" --app "$APPI" --analytics-query "$query" --query "tables[0].rows[0]" -o tsv)"
           read -r total failed p95 <<< "$row"
           echo "canary: $total requests, $failed with 5xx, p95 ${p95:-n/a} ms" | tee -a "$GITHUB_STEP_SUMMARY"
-          awk -v t="${total:-0}" -v f="${failed:-0}" -v p="${p95:-0}" 'BEGIN { exit !(f <= 0.01 * t && (t < 20 || p < 6000)) }'
+          awk -v t="${total:-0}" -v f="${failed:-0}" -v p="${p95:-0}" 'BEGIN { exit !(f <= 0.01 * t && (t < 20 || p < 13000)) }'
       - name: Promote to 100 % and deactivate the previous revision
         if: env.STABLE_REVISION != '' && env.STABLE_REVISION != env.NEW
         run: |

@@ -9,7 +9,7 @@ from locust import HttpUser, LoadTestShape, between, task
 SCENARIO, TOKEN = os.environ.get("LOAD_SCENARIO", "normal"), os.environ.get("LOAD_TOKEN", "")
 GOLDEN = Path(__file__).parent.parent / "eval" / "datasets" / "golden.jsonl"
 QUESTIONS = [json.loads(line)["question"] for line in GOLDEN.read_text("utf-8").splitlines() if line.strip()]
-SHAPES = {"normal": (5, 180), "peak": (20, 120), "soak": (5, 600), "real": (3, 120)}
+SHAPES = {"normal": (5, 180), "peak": (20, 120), "soak": (5, 600), "real": (3, 300)}
 STRESS_STEP, STRESS_ERRORS, STRESS_SECONDS = 5, 0.05, 1200
 
 

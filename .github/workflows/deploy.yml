@@ -28,7 +28,7 @@ jobs:
       id-token: write
     env:
       RG: rg-juriscope-stg-swc
-      APP: ca-juriscope-stg-spc
+      APP: ca-juriscope-stg
       PARAMS: infra/main.staging.bicepparam
       REGISTRY_LOGIN_SERVER: ${{ vars.REGISTRY_LOGIN_SERVER }}
       FOUNDRY_PROJECT_ENDPOINT: ${{ vars.FOUNDRY_PROJECT_ENDPOINT }}
