@@ -114,8 +114,8 @@ phase closes and how each will be demonstrated (a test and, from phase 7, a live
   - **Settings:** `01-azure.sh` brings it to the landing-zone template's settings: system identity, roles only, semantic ranker on
     standard, shared tags, logs to the shared workspace, and Cognitive Services User and OpenAI User for its identity on Foundry.
   - **What spaincentral changes:** the region has no AI enrichment of its own, so built-in skills rely on keyless billing. There are
-    no higher-capacity partitions (2 GB, 1 GB of vectors, 15 indexes, shared by P05 to P08). Since 2026-11-01 the app runs in `spaincentral` too, so
-    search calls stay in the region and model, Cosmos DB, Key Vault and telemetry calls cross to `swedencentral`.
+    no higher-capacity partitions (2 GB, 1 GB of vectors, 15 indexes, shared by P05 to P08). Since 2026-11-02 the apps run in `francecentral` (ADR-014),
+    so search calls cross to `spaincentral` and model, Cosmos DB, Key Vault and telemetry calls to `swedencentral`.
   - **Phase 2** starts with the build prompt's search precheck; if any check fails, it stops and reports.
 - **Quotas:** Cosmos DB region access in `swedencentral` allowed, no accounts yet; no Key Vaults, active or soft-deleted; storage
   accounts 0 of 250 in the region; the global names `kv-juriscope-*`, `stjuriscope*` and `cosmos-juriscope-*` are available.
@@ -125,6 +125,8 @@ phase closes and how each will be demonstrated (a test and, from phase 7, a live
   else moves: Cosmos DB, Storage, Key Vault, Application Insights, the identities and the resource groups stay in `swedencentral`.
   Phase 6 read `spaincentral` at 1 of 5 used (another product's staging), so Juriscope's two fit, but the other products' planned
   environments there would fill it (5 of 5). Consumption cores are a per-environment quota, readable only once an environment exists.
+  **Superseded on 2026-11-02 (ADR-014):** one environment per product, `cae-juriscope-env`, in `rg-juriscope-prod-swc`, in
+  `francecentral`; see the section *Container Apps environment* below.
 
 ## Decisions taken in phase 0
 
@@ -561,6 +563,35 @@ phase closes and how each will be demonstrated (a test and, from phase 7, a live
   ADR-013's options 1 and 2. The `load-test` status is per commit and `release.yml` requires it on the tagged commit with its digest,
   so the load test runs again after the phase 8 merge. `08-production.sh` must give the production CI principal `Juriscope.User`
   and set v2 tokens. Staging is at zero (min 0; the new app starts at zero after its deploy).
+
+## Container Apps environment (author's decision, 2026-11-02, branch `feature/environment`)
+
+- **Limits, read 2026-11-02:** 5 environments per subscription (preflight of the environment alone:
+  `MaxNumberOfGlobalEnvironmentsInSubExceeded`, *"cannot have more than 5 Container App Environments"*; 5 exist) and 1 per region
+  (`ManagedEnvironmentCount` limit 1, then 2 half an hour later; used: swedencentral 1, spaincentral 3, francecentral 0). `validate` of `main.bicep` against
+  production answered `Succeeded` and `what-if` short-circuited the three modules, because the environment sits in a module with
+  runtime values; updating an existing environment passes preflight at 5 of 5. Folium's v1.0.0 release failed this way.
+- **Decision (ADR-014):** `cae-juriscope-env` in `rg-juriscope-prod-swc`, `francecentral` (spaincentral would stay at 2 after
+  removing Juriscope's, not 0). `infra/modules/environment.bicep` holds the environment and its diagnostic setting; `app.bicep` calls
+  it only for production and references it as `existing` in the production resource group for both apps (`dependsOn` the module).
+  `appLocation` is `francecentral`. Data stays in `swedencentral`. Express environments, a quota request and sharing a
+  staging-named environment were rejected.
+- **`deploy.yml`** checks that it can read `cae-juriscope-env` before building. `release.yml` and `load-test.yml` address apps by
+  resource group and name and need no change.
+- **Cost:** France Central's Consumption meters match Sweden Central's at the API's precision; production at rest about 11.2 € a
+  month (`fixedMonthlyEur = '11.2'`), all-in about 0.037 € per question (`cost.md`, ADR-008).
+- **`../_scripts/product-legal-juriscope/08-environment.sh`** (author): read-only prechecks (subscription would exceed 5,
+  francecentral not free, spaincentral at 0 after removing Juriscope's), then deletes `ca-juriscope-stg` (created in the old
+  environment by the phase 7 merge's deploy), `ca-juriscope-stg-spc` and any other app in an old Juriscope environment, then
+  `cae-juriscope-stg-spc` and any other old Juriscope environment; validates and deploys `environment.bicep` with concrete values;
+  creates the custom role *Juriscope Container Apps Environment Join* (`managedEnvironments/read` and `join/action`, assignable on
+  `rg-juriscope-prod-swc`) and assigns it to the staging CI principal on the environment.
+- **Author's order:** `08-environment.sh` (after the phase 7 merge's `deploy.yml` has finished); `publish-environment.sh`; merge;
+  the merge's `deploy.yml` creates `ca-juriscope-stg` in `cae-juriscope-env`; `SKIP_DEPLOY=1 07-staging.sh` (new callback, old ones
+  removed); `ONLY=browser` and `ONLY=load 07-live-runs.sh`. Staging is down from the first step until that deploy. The sign-in
+  script runs again after each deploy that recreates or moves an app, because the address changes.
+- **For phase 8:** measure every step again from France Central (all dependency calls now cross a region) before trusting SLA-02;
+  `08-production.sh` needs no environment work, because production's Bicep redeclares the existing environment unchanged.
 
 ## Verified names (installed wheels, 2026-10-30)
 

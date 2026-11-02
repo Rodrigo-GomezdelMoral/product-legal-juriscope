@@ -49,6 +49,10 @@ jobs:
           client-id: ${{ secrets.AZURE_CLIENT_ID }}
           tenant-id: ${{ secrets.AZURE_TENANT_ID }}
           subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+      - name: The shared Container Apps environment exists and this principal can join it (ADR-014)
+        run: |
+          az resource show -g rg-juriscope-prod-swc -n cae-juriscope-env --resource-type Microsoft.App/managedEnvironments -o none \
+            || { echo "::error::cae-juriscope-env is missing or not readable: the author runs 08-environment.sh first (ADR-014)"; exit 1; }
       - name: Tag the image with the date, the branch and the commit
         id: tag
         run: echo "tag=$(date -u +%Y%m%d)-main-${GITHUB_SHA::7}" >> "$GITHUB_OUTPUT"

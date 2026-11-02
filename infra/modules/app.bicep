@@ -18,34 +18,24 @@ param actionGroupId string
 @description('Environment variables of the container.')
 param settings object
 
-var regionCodes = { swedencentral: 'swc', spaincentral: 'spc' }
 var name = 'ca-juriscope-${short}'
 var canary = { revisionName: '${name}--${revisionSuffix}', weight: empty(stableRevision) ? 100 : 0, label: 'canary' }
 var issuer = '${az.environment().authentication.loginEndpoint}${tenant().tenantId}/v2.0'
 
-resource managedEnvironment 'Microsoft.App/managedEnvironments@2026-07-01' = {
-  name: 'cae-juriscope-${short}-${regionCodes[location]}'
-  location: location
-  tags: tags
-  properties: {
-    appLogsConfiguration: { destination: 'azure-monitor' }, workloadProfiles: [{ name: 'Consumption', workloadProfileType: 'Consumption' }], zoneRedundant: false
-  }
+module environment 'environment.bicep' = if (production) {
+  params: { location: location, tags: tags, workspaceId: workspaceId }
 }
 
-#disable-next-line use-recent-api-versions
-resource logs 'Microsoft.Insights/diagnosticSettings@2021-05-01-preview' = {
-  name: 'to-shared-workspace'
-  scope: managedEnvironment
-  properties: { workspaceId: workspaceId, logs: [{ categoryGroup: 'allLogs', enabled: true }] }
-}
+resource sharedEnvironment 'Microsoft.App/managedEnvironments@2026-07-01' existing = { name: 'cae-juriscope-env', scope: resourceGroup('rg-juriscope-prod-swc') }
 
 resource app 'Microsoft.App/containerApps@2026-07-01' = {
   name: name
+  dependsOn: [environment]
   location: location
   tags: tags
   identity: { type: 'UserAssigned', userAssignedIdentities: { '${identityId}': {} } }
   properties: {
-    environmentId: managedEnvironment.id
+    environmentId: sharedEnvironment.id
     workloadProfileName: 'Consumption'
     configuration: {
       activeRevisionsMode: 'Multiple'

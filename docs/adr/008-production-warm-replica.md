@@ -10,11 +10,12 @@ process (phase 4). A cold replica adds image pull, Python start-up, loading the 
 
 Container Apps prices in Spain Central (Retail Prices API, 2026-11-01) are about 42 % above Sweden Central. The API rounds EUR to six
 decimals, so the ratio comes from the active vCPU meter: 0.000030 against 0.000021 € per second, and 0.000034 against 0.000024 $.
+Since 2026-11-02 the apps run in France Central (ADR-014), whose meters match Sweden Central's at the API's precision.
 
 ## Options
 
-1. **`minReplicas: 1`** (chosen): one replica of 0.5 vCPU and 1 GiB billed at the idle rate when it serves nothing, about 14.6 € a
-   month in Spain Central (10.26 € in Sweden Central). At most 15.6 € if the idle meter is really the rounded 0.000004 €.
+1. **`minReplicas: 1`** (chosen): one replica of 0.5 vCPU and 1 GiB billed at the idle rate when it serves nothing, about 10.3 € a
+   month in France Central and Sweden Central (14.6 € in Spain Central). At most 11.7 € if the idle meter is really the rounded 0.000003 €.
 2. **A cron scale rule for business hours:** a replica held by a scale rule bills at the active rate, about 19.3 € a month in Spain
    Central for the business hours alone. It also conflicts with multiple revision mode, which the canary needs.
 3. **Scale to zero:** free at rest, but every first question of the morning, and after each idle period, pays the cold start against
@@ -30,10 +31,10 @@ SLA-02, as production's warm replica does.
 
 ## Consequences
 
-- The warm replica is production's main standing cost. With the two log alert rules, production costs about 15.5 € a month at rest.
-- **All-in cost per question at 350 questions a month is about 0.049 to 0.051 €,** against the 0.05 € SLO. The variable part is
+- The warm replica is production's main standing cost. With the two log alert rules, production costs about 11.2 € a month at rest (15.5 € in Spain Central).
+- **All-in cost per question at 350 questions a month is about 0.037 to 0.039 €,** against the 0.05 € SLO. The variable part is
   0.0046 to 0.007 € per question.
-  - Before the move to Spain Central it was about 0.04 €.
+  - In Spain Central it was about 0.049 to 0.051 €.
   - **Size kept at 0.5 vCPU / 1 GiB (phase 7, 2026-11-01).** Azure Monitor maxima per revision: working set 0.36 GiB at start,
     0.40 GiB at 3 users on the real model and at 20 users on the model double, 0.53 GiB at 100 users; CPU 0.08 vCPU at 3 users,
     0.22 vCPU at 20 users, 0.51 vCPU (saturated, probe timeouts, no failed request) at 100 users. 0.25 vCPU / 0.5 GiB would sit

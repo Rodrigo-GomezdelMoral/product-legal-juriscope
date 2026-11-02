@@ -1,6 +1,6 @@
 # Threat model
 
-A light STRIDE pass over Juriscope as deployed: a browser, one container app (FastAPI and the web client) in Spain Central behind
+A light STRIDE pass over Juriscope as deployed: a browser, one container app (FastAPI and the web client) in France Central behind
 Container Apps authentication, the shared Foundry models and AI Search, and Cosmos DB, Storage, Key Vault and Application
 Insights in Sweden Central. Each mitigation names the test or live check that proves it. **Implemented** means in code or Bicep;
 **proven** means the named check has passed. The live checks ran on staging on 2026-11-01 (phase 7); phase 8 repeats the
