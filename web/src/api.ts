@@ -57,7 +57,7 @@ async function* replay(question: string): AsyncGenerator<Event> {
 }
 
 export const api = {
-  me: () => (DEMO ? Promise.resolve({ name: "Demo visitor", initials: "D" }) : json<Me>("/api/me")),
+  me: () => (DEMO ? Promise.resolve({ name: "Visitor", initials: "V" }) : json<Me>("/api/me")),
   meta: () => (DEMO ? Promise.resolve(RUNS[0]?.meta) : json<Meta>("/api/meta")),
   conversations: () => json<Summary[]>("/api/conversations"),
   conversation: (id: string) => json<Conversation>(`/api/conversations/${id}`),

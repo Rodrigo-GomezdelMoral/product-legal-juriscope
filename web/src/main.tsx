@@ -1,8 +1,8 @@
 import "@fontsource/inter/latin-400.css";
 import "@fontsource/inter/latin-600.css";
 import "./styles.css";
-import { ArrowUp, Check, Copy, LoaderCircle, LogOut, Menu, MessageSquare, PlayCircle, Search, SquarePen, ThumbsDown, ThumbsUp, Trash2 } from "lucide-react";
-import { useEffect, useRef, useState } from "react";
+import { ArrowUp, Check, CircleUserRound, Copy, FileText, LoaderCircle, LogOut, Menu, MessageSquare, Search, SquarePen, ThumbsDown, ThumbsUp, Trash2 } from "lucide-react";
+import { Fragment, useEffect, useRef, useState } from "react";
 import { createRoot } from "react-dom/client";
 import Markdown from "react-markdown";
 import { answered, api, DEMO, RUNS, type Answer, type Me, type Meta, type Phase, type Run, type Summary, type Turn } from "./api";
@@ -15,22 +15,15 @@ const SUGGESTIONS = [
   "¿Cuándo prescribe un delito de estafa?",
   "What does the Criminal Code say about self-defence?",
 ];
-const STEPS: Phase["step"][] = ["analysing", "searching", "reading", "drafting", "verifying"];
+const STAGES: Record<Phase["step"], string> = { analysing: "Analysing the question", searching: "Searching the Code", reading: "Reading articles", drafting: "Drafting", verifying: "Verifying citations" };
 type Shown = { question: string; phase: Phase["step"]; articles?: number; turn?: Turn; error?: string };
 type Item = { key: string; label: string; go: () => void; remove?: () => void };
 
 function Progress({ shown }: { shown: Shown }) {
-  const at = STEPS.indexOf(shown.phase);
-  const labels = ["Analysing the question", "Searching the Code", `Reading ${shown.articles ?? ""} articles`, "Drafting", "Verifying citations"];
+  const count = shown.phase === "reading" && shown.articles !== undefined;
   return (
-    <p className="status progress" role="status">
-      {labels.map((label, index) => (
-        <span key={label} className={index < at ? "done" : index === at ? "now" : undefined}>
-          {index < at && <Check size={14} aria-hidden />}
-          {index === at && <LoaderCircle size={14} className="spin" aria-hidden />}
-          {label.replace("  ", " ")}
-        </span>
-      ))}
+    <p className="status" role="status">
+      <LoaderCircle size={16} className="spin" aria-hidden /> {count ? `Reading ${shown.articles} article${shown.articles === 1 ? "" : "s"}` : STAGES[shown.phase]}
     </p>
   );
 }
@@ -177,8 +170,8 @@ function App() {
     ? RUNS.map((run): Item => ({ key: run.id, label: run.title, go: () => play(run) }))
     : summaries.map((summary): Item => ({ key: summary.id, label: summary.title, go: () => open(summary), remove: () => remove(summary) }))
   ).filter((item) => item.label.toLowerCase().includes((filter ?? "").toLowerCase()));
-  const Icon = DEMO ? PlayCircle : MessageSquare;
-  const initial = (me?.initials || me?.name || "?").charAt(0).toUpperCase();
+  const heading = DEMO ? "Recorded runs" : "Conversations";
+  const Icon = DEMO ? FileText : MessageSquare;
 
   return (
     <div className="app">
@@ -200,29 +193,30 @@ function App() {
             </button>
           </div>
           {filter !== undefined && <input className="search" aria-label="Search the list" autoFocus value={filter} onChange={(event) => setFilter(event.target.value)} />}
-          <nav aria-label={DEMO ? "Recorded runs" : "Conversations"}>
-            <h2>{DEMO ? "Recorded runs" : "Conversations"}</h2>
+          <nav aria-label={heading}>
+            <h2>{heading}</h2>
             <ul>
               {listed.map(({ key, label, go, remove }) => (
-                  <li key={key} className={key === active ? "selected" : undefined}>
-                    <button className="item" aria-current={key === active} onClick={go}>
-                      <Icon size={16} aria-hidden /> <span>{label}</span>
+                <li key={key}>
+                  <button className={key === active ? "item selected" : "item"} aria-current={key === active} onClick={go}>
+                    <Icon size={16} aria-hidden /> <span>{label}</span>
+                  </button>
+                  {remove && (
+                    <button className="icon" aria-label={`Delete ${label}`} onClick={remove}>
+                      <Trash2 size={16} />
                     </button>
-                    {remove && (
-                      <button className="icon" aria-label={`Delete ${label}`} onClick={remove}>
-                        <Trash2 size={16} />
-                      </button>
-                    )}
-                  </li>
-                ))}
+                  )}
+                </li>
+              ))}
             </ul>
             {listed.length === 0 && <p className="status">{filter ? "Nothing matches the search." : DEMO ? "No recorded runs yet." : "No conversations yet."}</p>}
           </nav>
           <div className="me">
-            <span className="avatar" aria-hidden>
-              {initial}
+            <CircleUserRound className="avatar" size={28} strokeWidth={1.5} aria-hidden />
+            <span>
+              {me?.name || "Signed out"}
+              <small>{me && !DEMO ? "User" : DEMO ? "Demo" : "No Juriscope role"}</small>
             </span>
-            <span>{me?.name || "Signed out"}</span>
             {!DEMO && (
               <a className="icon" href="/.auth/logout" aria-label="Sign out">
                 <LogOut size={16} />
@@ -238,7 +232,7 @@ function App() {
           )}
           {shown.length === 0 ? (
             <div className="empty">
-              <img src={`${BRAND}juriscope-logo.svg`} alt="Juriscope" height={48} />
+              <img src={`${BRAND}juriscope-icon.svg`} alt="" width={56} height={56} />
               <h2>Cited answers on the Spanish Criminal Code, with the full article and the version in force.</h2>
               <div className="suggestions">
                 {SUGGESTIONS.map((text) => (
@@ -251,26 +245,26 @@ function App() {
           ) : (
             <div className="thread" aria-label="Conversation">
               {shown.map((item, index) => (
-                <div key={index}>
+                <Fragment key={index}>
                   <div className="turn user">
-                    <span className="avatar" aria-hidden>
-                      {initial}
-                    </span>
+                    <CircleUserRound className="avatar" size={28} strokeWidth={1.5} aria-hidden />
                     <p>{item.question}</p>
                   </div>
-                  <section className="turn product" aria-label="Juriscope">
-                    <p className="name">Juriscope</p>
-                    {item.error ? (
-                      <p className="status error" role="alert">
-                        {item.error}
-                      </p>
-                    ) : item.turn ? (
-                      <Outcome turn={item.turn} meta={meta} />
-                    ) : (
-                      <Progress shown={item} />
-                    )}
-                  </section>
-                </div>
+                  {item.error || item.turn ? (
+                    <section className="turn product" aria-label="Juriscope">
+                      <p className="name">Juriscope</p>
+                      {item.error ? (
+                        <p className="status error" role="alert">
+                          {item.error}
+                        </p>
+                      ) : (
+                        item.turn && <Outcome turn={item.turn} meta={meta} />
+                      )}
+                    </section>
+                  ) : (
+                    <Progress shown={item} />
+                  )}
+                </Fragment>
               ))}
               <div ref={end} />
             </div>
