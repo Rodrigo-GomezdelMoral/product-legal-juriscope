@@ -33,8 +33,8 @@ param searchEndpoint string
 param chatModel string
 param embeddingModel string
 param location string = resourceGroup().location
-@description('Region of the Container Apps environment and app only; everything else stays in the resource group region.')
-param appLocation string = 'spaincentral'
+@description('Region of the shared Container Apps environment and the app only (ADR-014); everything else stays in the resource group region.')
+param appLocation string = 'francecentral'
 @description('First month of the budget, fixed so that a redeployment never changes it.')
 param budgetStartDate string = '2026-11-01'
 param sharedResourceGroup string = 'rg-aiplatform-shared-swc'
