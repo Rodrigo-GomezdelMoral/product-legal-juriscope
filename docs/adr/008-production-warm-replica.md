@@ -4,7 +4,7 @@
 
 ## Context
 
-SLA-02 asks for 95 % of standard questions answered in under 8 s. The workflow already takes a median of 6.3 to 6.8 s with a warm
+SLA-02 asked for 95 % of standard questions answered in under 8 s (15 s since 2026-11-02, ADR-013). The workflow already takes a median of 6.3 to 6.8 s with a warm
 process (phase 4). A cold replica adds image pull, Python start-up, loading the 3 MB version store and the first search query
 (3.9 s cold in phase 2). The firm works Monday to Friday, 08:00–21:00 Europe/Madrid.
 
@@ -23,7 +23,10 @@ decimals, so the ratio comes from the active vCPU meter: 0.000030 against 0.0000
 ## Decision
 
 Option 1 in production, `minReplicas: 0` in staging. Staging measures the cold start, which tells whether option 3 could ever be
-acceptable.
+acceptable. Measured in phase 7: 30.1 s for the first request after scaling to zero (2026-11-01, one user), and in the load test
+the first three real-model questions waited 25.5 s for a replica (scale-out decision 0.3 s, image pull from 15 s, container started
+at 16.5 s, first request served at 25.5 s) and took 36 to 37 s in all. Option 3 is ruled out, and `load-test.yml` now warms the stable revision before measuring
+SLA-02, as production's warm replica does.
 
 ## Consequences
 
@@ -31,7 +34,9 @@ acceptable.
 - **All-in cost per question at 350 questions a month is about 0.049 to 0.051 €,** against the 0.05 € SLO. The variable part is
   0.0046 to 0.007 € per question.
   - Before the move to Spain Central it was about 0.04 €.
-  - Phase 7 measures the replica's CPU and memory under load. If 0.25 vCPU and 0.5 GiB are enough, they halve this cost (about
-    7.3 €).
+  - **Size kept at 0.5 vCPU / 1 GiB (phase 7, 2026-11-01).** Azure Monitor maxima per revision: working set 0.36 GiB at start,
+    0.40 GiB at 3 users on the real model and at 20 users on the model double, 0.53 GiB at 100 users; CPU 0.08 vCPU at 3 users,
+    0.22 vCPU at 20 users, 0.51 vCPU (saturated, probe timeouts, no failed request) at 100 users. 0.25 vCPU / 0.5 GiB would sit
+    at the CPU limit at the peak scenario and run out of memory under stress, so the saving (about 7.3 €) is not taken.
   - The workbook shows the figure month by month.
 - Prompt 06 sets `minReplicas: 0` to switch production off without deleting it.

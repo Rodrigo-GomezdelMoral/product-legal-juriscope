@@ -44,7 +44,7 @@ lawyer's diligence.
 
 ### To-be
 
-The lawyer still delimits the question (5–10 min) and asks it in Juriscope. In under 8 seconds Juriscope does the machine part of
+The lawyer still delimits the question (5–10 min) and asks it in Juriscope. In about 10 seconds (95 % under 15) Juriscope does the machine part of
 steps 2 to 6: the *Analyst* agent extracts the legal concepts, Spanish search queries and the date of the facts; hybrid and semantic
 search finds the candidate provisions; the whole articles are rebuilt from the official version store; the version in force today,
 or on the date of the facts, is selected with its amending law; the *Counsel* agent drafts claims that cite only the retrieved
@@ -60,7 +60,7 @@ from the firm's figures; K1 measures the real time to an accepted answer.
 | Step | As-is: who and what | Time | To-be: who and what | Time |
 |---|---|---|---|---|
 | 1 Reception | Lawyer delimits the legal question | 5–10 min | Lawyer, the same | 5–10 min |
-| 2 Identification | Lawyer lists possible offences and articles | 5–15 min | Juriscope: *Analyst* extracts concepts, search queries and the date of the facts | ≤ 8 s for steps 2–6 |
+| 2 Identification | Lawyer lists possible offences and articles | 5–15 min | Juriscope: *Analyst* extracts concepts, search queries and the date of the facts | ≤ 15 s for steps 2–6 |
 | 3 Search | Lawyer finds the provisions in the BOE or a database | 5–10 min | Juriscope: hybrid and semantic search over the Code | |
 | 4 Reading | Lawyer reads the full articles | 5–15 min | Juriscope: whole articles rebuilt from the official version store | |
 | 5 Verification | Lawyer checks amendments and the version in force | 5–15 min | Juriscope: version in force today or on the date of the facts, with the amending law | |
@@ -100,7 +100,7 @@ Priorities follow MoSCoW. Every *Must* is proven by a test, live evidence and a 
 | REQ-10 | Should | As the firm I want conversations kept no longer than needed |
 | REQ-11 | Could | As a lawyer I want the answer in the language of my question |
 | SLA-01 | SLA | Availability of at least 99.5 % a month |
-| SLA-02 | SLA | 95 % of standard questions answered in under 8 seconds |
+| SLA-02 | SLA | 95 % of standard questions answered in under 15 seconds, with progress shown within 0.1 seconds |
 
 ### Acceptance criteria
 
@@ -176,7 +176,10 @@ Priorities follow MoSCoW. Every *Must* is proven by a test, live evidence and a 
 **SLA-02 · Response time**
 - **Given** standard questions in production (one in-scope question of moderate complexity, like the golden evaluation set),
 - **when** the time is measured from the request to the final server-sent event,
-- **then** 95 % of them finish in under 8 seconds.
+- **then** 95 % of them finish in under 15 seconds, and the progress line (*Analysing the question*) appears within 0.1 seconds of
+  sending, measured in the browser.
+
+Restated on 2026-11-02 from the staging measurements of phase 7; it was 95 % under 8 seconds ([ADR-013](adr/013-sla-02-restated.md)).
 
 ### Won't, in this release
 
@@ -217,7 +220,7 @@ The SLOs are internal targets, stricter than the SLAs, so that an SLO miss warns
 | Item | Value | Measured by |
 |---|---|---|
 | Availability SLO | ≥ 99.7 % | `requests` on `/api/*`, over 30 days, both in business hours and around the clock |
-| Latency SLO | p95 < 6 s | `requests` duration of the ask route, to the final event |
+| Latency SLO | p95 < 13 s | `requests` duration of the ask route, to the final event |
 | Error SLO | < 1 % 5xx | `requests` |
 | Cost per question | ≤ 0.05 € all-in, in production | `AnswerDelivered.cost_eur` plus the fixed monthly cost ÷ questions |
 | RTO | 4 h | the restore drill on staging |

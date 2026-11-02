@@ -25,6 +25,7 @@ def configure() -> None:
             resource=resource,
             views=create_metric_views(),
             logger_name=LOGGER.name,
+            sampling_ratio=1.0,
         )
         enable_instrumentation()
         return

@@ -35,14 +35,14 @@ var tiles = [
   }
   {
     title: 'K4 Weekly active seats: % of {Seats} seats asking in the ISO week (target 70)'
-    query: '${events} | where name == "QuestionAsked" | summarize seats = dcount(tostring(customDimensions.user_hash)) by week = startofweek(timestamp, 1) | extend active_pct = round(100.0 * seats / {Seats}, 1), target = 70, met = iff(active_pct >= 70, "✓", "✗") | order by week desc'
+    query: '${events} | where name == "QuestionAsked" | summarize seats = dcount(tostring(customDimensions.user_hash)) by week = startofweek(timestamp - 1d) + 1d | extend active_pct = round(100.0 * seats / {Seats}, 1) | extend target = 70, met = iff(active_pct >= 70, "✓", "✗") | order by week desc'
   }
   {
     title: 'Availability, around the clock: % of /api requests without 5xx (SLO 99.7, SLA 99.5)'
     query: '${api} | ${availability} | extend slo = 99.7, sla = 99.5, met = iff(availability_pct >= 99.7, "✓", "✗")'
   }
   { title: 'Availability, business hours (SLO 99.7)', query: '${api} | ${businessHours} | ${availability} | extend slo = 99.7, met = iff(availability_pct >= 99.7, "✓", "✗")' }
-  { title: 'Latency: p95 seconds of the ask route to the final event (SLO 6, SLA 8)', query: '${ask} | extend slo = 6, sla = 8, met = iff(p95_s < 6, "✓", "✗")' }
+  { title: 'Latency: p95 seconds of the ask route to the final event (SLO 13, SLA 15)', query: '${ask} | extend slo = 13, sla = 15, met = iff(p95_s < 13, "✓", "✗")' }
   {
     title: 'Errors: % of /api requests with 5xx (SLO 1)'
     query: '${api} | summarize total = count(), error_pct = round(100.0 * countif(toint(resultCode) >= 500) / count(), 2) | extend slo = 1, met = iff(error_pct < 1, "✓", "✗")'
@@ -66,7 +66,7 @@ var items = [
 ]
 var alerts = [
   { name: 'availability', description: 'Availability of /api below the 99.7 % SLO over the last hour', query: '${api} | ${availability} | where total >= 20 and availability_pct < 99.7' }
-  { name: 'latency', description: 'p95 of the ask route at or above the 6 s SLO over the last hour', query: '${ask} | where asks >= 5 and p95_s >= 6' }
+  { name: 'latency', description: 'p95 of the ask route at or above the 13 s SLO over the last hour', query: '${ask} | where asks >= 5 and p95_s >= 13' }
 ]
 
 resource insights 'Microsoft.Insights/components@2020-02-02' = {

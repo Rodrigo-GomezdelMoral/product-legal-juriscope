@@ -19,7 +19,7 @@ param actionGroupId string
 param settings object
 
 var regionCodes = { swedencentral: 'swc', spaincentral: 'spc' }
-var name = 'ca-juriscope-${short}-${regionCodes[location]}'
+var name = 'ca-juriscope-${short}'
 var canary = { revisionName: '${name}--${revisionSuffix}', weight: empty(stableRevision) ? 100 : 0, label: 'canary' }
 var issuer = '${az.environment().authentication.loginEndpoint}${tenant().tenantId}/v2.0'
 

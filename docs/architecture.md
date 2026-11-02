@@ -2,7 +2,7 @@
 
 ```mermaid
 graph LR
-    U["Lawyer · browser"] -->|Entra sign-in · Easy Auth| CA["ca-juriscope-env-spc · FastAPI + web · Spain Central"]
+    U["Lawyer · browser"] -->|Entra sign-in · Easy Auth| CA["ca-juriscope-env · FastAPI + web · Spain Central"]
     CA --> WF["Juriscope workflow · WorkflowBuilder"]
     WF --> AN["analyze · Analyst · gpt-5-mini"]
     WF --> RT["retrieve · code"]
@@ -19,7 +19,7 @@ graph LR
 
 ## Regions
 
-- **Spain Central:** the Container Apps environment and app (`cae-` and `ca-juriscope-<env>-spc`), because Sweden Central allows one
+- **Spain Central:** the Container Apps environment and app (`cae-juriscope-<env>-spc` and `ca-juriscope-<env>`), because Sweden Central allows one
   managed environment per subscription and it is taken (author's decision, 2026-11-01). The shared AI Search service is also here.
 - **Sweden Central:** everything else of each environment (Cosmos DB, Storage, Key Vault, Application Insights, the runtime
   identity) and the shared Foundry account, registry and workspace.
