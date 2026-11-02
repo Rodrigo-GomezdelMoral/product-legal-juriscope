@@ -107,6 +107,11 @@ h3 {
   list-style: none;
 }
 
+.sidebar li {
+  display: flex;
+  align-items: center;
+}
+
 .row {
   display: flex;
   gap: 8px;
@@ -176,6 +181,7 @@ h3 {
   gap: 8px;
   align-items: center;
   width: 100%;
+  min-width: 0;
   padding: 8px 12px;
   text-align: left;
   background: none;
@@ -193,24 +199,12 @@ h3 {
   white-space: nowrap;
 }
 
-.sidebar li {
-  display: flex;
-  align-items: center;
-  border-radius: var(--card);
-}
-
-.sidebar li:hover,
-.sidebar li.selected {
+.item:hover,
+.item.selected {
   background: var(--selection);
 }
 
-.sidebar li .item {
-  flex: 1;
-  width: auto;
-  min-width: 0;
-}
-
-.sidebar li.selected .item {
+.item.selected {
   color: var(--accent-strong);
   font-weight: 600;
 }
@@ -236,15 +230,8 @@ h3 {
 }
 
 .avatar {
-  display: grid;
-  place-items: center;
-  width: 28px;
-  height: 28px;
   flex: none;
-  background: var(--light);
-  border-radius: 999px;
-  font-size: 13px;
-  font-weight: 600;
+  color: var(--muted);
 }
 
 main {
@@ -299,12 +286,6 @@ main {
   margin: 0 0 8px;
 }
 
-.answer a {
-  color: var(--accent-strong);
-  font-size: 12px;
-  vertical-align: super;
-}
-
 .status {
   display: flex;
   gap: 6px;
@@ -313,11 +294,23 @@ main {
   color: var(--muted);
 }
 
+.thread > .status {
+  margin-inline: auto;
+}
+
 .status.error {
   padding: 8px 12px;
   color: var(--error);
   background: var(--surface);
   border-radius: var(--card);
+}
+
+.ok {
+  color: var(--success);
+}
+
+.bad {
+  color: var(--error);
 }
 
 .spin {
@@ -358,6 +351,31 @@ main {
 .card h3 small {
   color: var(--muted);
   font-weight: 400;
+}
+
+.buttons {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 8px;
+}
+
+table {
+  width: 100%;
+  margin: 8px 0;
+  border-collapse: collapse;
+  font-size: 14px;
+}
+
+th,
+td {
+  padding: 4px 8px;
+  text-align: left;
+  border-bottom: 1px solid var(--line);
+}
+
+th {
+  font-weight: 600;
 }
 
 .empty {
@@ -468,8 +486,7 @@ main {
     border: 1px solid var(--light);
   }
 
-  .suggestions,
-  .versions {
+  .suggestions {
     grid-template-columns: minmax(0, 1fr);
   }
 }
@@ -479,21 +496,10 @@ main {
   font-size: 13px;
 }
 
-
-.progress {
-  flex-wrap: wrap;
-  gap: 4px 12px;
-  font-size: 14px;
-}
-
-.progress span {
-  display: inline-flex;
-  gap: 4px;
-  align-items: center;
-}
-
-.progress .done svg {
-  color: var(--success);
+.answer a {
+  color: var(--accent-strong);
+  font-size: 12px;
+  vertical-align: super;
 }
 
 .sr-only {
@@ -503,11 +509,6 @@ main {
   overflow: hidden;
   clip-path: inset(50%);
   white-space: nowrap;
-}
-
-.progress .now {
-  color: var(--text);
-  font-weight: 600;
 }
 
 .card h3 .number {
@@ -526,6 +527,12 @@ main {
   display: grid;
   grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
   gap: 16px;
+}
+
+@media (max-width: 900px) {
+  .versions {
+    grid-template-columns: minmax(0, 1fr);
+  }
 }
 
 .version p {

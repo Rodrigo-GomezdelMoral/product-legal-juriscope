@@ -25,8 +25,11 @@ Staging figures were measured in phase 7 (2026-11-01, times in UTC); figures mar
 - **To staging:** merge a PR to `main`. `deploy.yml` builds the image once, deploys it by digest with `what-if` first, refreshes the
   corpus and the index (a no-op when the PDF is unchanged), checks `/healthz` on the `canary` label and moves all traffic. It then
   runs the smoke test and uploads the digest as the artifact `image-<sha>`.
-- **Load test before any release:** `gh workflow run load-test.yml --ref main`. It sets the commit status `load-test`, naming the
-  digest it tested, that `release.yml` requires.
+- **Load test before a release that changes the API:** `gh workflow run load-test.yml --ref main`. It sets the commit status
+  `load-test`, naming the digest it tested, that `release.yml` requires. `release.yml` always requires the staging deploy of the
+  tagged commit, and skips the load-test requirement only when every path changed since the previous release it promoted matches
+  `web/**`, `docs/**`, any `*.md` or `.github/**` (ADR-015); its log prints the changed paths and the decision. With no such
+  release, the first one (v1.0.0) included, the load test is required.
 - **To production:** `gh release create vX.Y.Z --notes-file <CHANGELOG section>`, then approve the `production` deployment.
   `release.yml` promotes the staging digest of the tagged commit, with 10 % canary for ten minutes and then 100 %, or rolls back.
 - **First deployment of an environment:** the Key Vault role and the container app are created in one deployment. If the revision

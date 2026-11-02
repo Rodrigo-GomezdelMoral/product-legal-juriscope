@@ -56,7 +56,7 @@ the cases it applies to, and its value is the share of those cases where the che
   then retries the whole case after 20, 40 and 80 seconds, outside the concurrency limit, and does the same for a lost
   connection (`openai.APIConnectionError`, not its timeout subclass: a timeout is a latency failure and stays an error). Each
   retry is logged to standard error with the cause and the wait. A full run reaches the deployment's
-  100K tokens per minute, so it throttles other products' calls while it runs: start it when no other product is load-testing.
+  100K tokens per minute, so it throttles every other caller of the shared deployment while it runs: start it when no other load test is running.
 - **Errors in the report** are one line each, at most 200 characters, with host names replaced by `<host>`. The pull-request
   comment and the artifacts of a public repository are public.
 

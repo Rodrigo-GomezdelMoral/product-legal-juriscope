@@ -25,8 +25,13 @@ jobs:
       digest: ${{ steps.digest.outputs.digest }}
       sha: ${{ steps.digest.outputs.sha }}
     steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+          fetch-tags: true
+          persist-credentials: false
       - id: digest
-        name: Digest that deploy.yml built for the tag's commit, which passed the load test in staging
+        name: Digest that deploy.yml built for the tag's commit, and its load test unless only web, docs or workflows changed
         env:
           GH_TOKEN: ${{ github.token }}
           TAG: ${{ github.event.release.tag_name || github.ref_name }}
@@ -36,9 +41,33 @@ jobs:
           test -n "$run"
           gh run download "$run" -R "$GITHUB_REPOSITORY" -n "image-$sha" -D artifact
           digest="$(cat artifact/digest.txt)"
-          load="$(gh api "repos/$GITHUB_REPOSITORY/commits/$sha/status" --jq '[.statuses[] | select(.context == "load-test")][0] | "\(.state) \(.description)"')"
-          echo "$TAG: deploy.yml run $run, load-test $load"
-          [[ "$load" == "success "*"$digest"* ]]
+          echo "$TAG: deployed to staging by deploy.yml run $run"
+          now="$(gh release view "$TAG" -R "$GITHUB_REPOSITORY" --json publishedAt --jq .publishedAt 2>/dev/null || date -u +%Y-%m-%dT%H:%M:%SZ)"
+          earlier="[.[] | select(.tagName != \"$TAG\" and .publishedAt < \"$now\")] | sort_by(.publishedAt) | reverse | .[].tagName"
+          previous=""
+          for tag in $(gh release list -R "$GITHUB_REPOSITORY" --exclude-drafts --limit 100 --json tagName,publishedAt --jq "$earlier"); do
+            promoted="$(gh run list -R "$GITHUB_REPOSITORY" --workflow release.yml --branch "$tag" --status success --json databaseId --jq '.[0].databaseId // empty')"
+            if [ -n "$promoted" ]; then previous="$tag"; break; fi
+          done
+          needed=yes
+          if [ -n "$previous" ]; then
+            changed="$(git diff --name-only --no-renames "$previous" "$sha")"
+            echo "Paths changed since $previous:"
+            echo "${changed:-(none)}"
+            needed=no
+            while IFS= read -r path; do
+              case "$path" in "" | web/* | docs/* | *.md | .github/*) ;; *) needed=yes ;; esac
+            done <<< "$changed"
+          else
+            echo "No previous published release that release.yml promoted."
+          fi
+          if [ "$needed" = yes ]; then
+            load="$(gh api "repos/$GITHUB_REPOSITORY/commits/$sha/status" --jq '[.statuses[] | select(.context == "load-test")][0] | "\(.state) \(.description)"')"
+            echo "Load test required: load-test $load"
+            [[ "$load" == "success "*"$digest"* ]]
+          else
+            echo "Load test not required: every changed path is under web/, docs/ or .github/, or a Markdown file (ADR-015)."
+          fi
           { echo "digest=$digest"; echo "sha=$sha"; } >> "$GITHUB_OUTPUT"
 
   promote:

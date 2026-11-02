@@ -61,8 +61,8 @@ or production yet.
     repealed provision, so the answer refuses or omits it (ADR-003 records it in phase 6).
   - **Questions on sexual offences against minors are refused.** The shared content filter (`guardrail-chat`, Sexual at medium)
     blocked both such questions on every attempt in phase 2, and Juriscope returns a typed `content_filter` refusal. A lawyer
-    researching those offences must read the articles in the BOE directly. Lowering the threshold would change a guardrail
-    shared by four products, so it stays as it is.
+    researching those offences must read the articles in the BOE directly. Lowering the threshold would change a shared
+    guardrail, so it stays as it is.
   - **The same filter refuses a question on sharing intimate images without consent** (article 197.7), in every phase 3 run. It
     is the one false refusal of the golden set.
   - **Model retirement:** `gpt-5-mini` 2025-08-07 retires on 2027-02-09 ([ADR-010](adr/010-model-lifecycle.md)); the replacement
