@@ -79,6 +79,7 @@ jobs:
       contents: read
       id-token: write
     env:
+      AZURE_TOKEN_CREDENTIALS: AzureCliCredential
       RG: rg-juriscope-prod-swc
       APP: ca-juriscope-prod
       APPI: appi-juriscope-prod-swc

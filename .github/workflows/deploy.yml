@@ -27,6 +27,7 @@ jobs:
       contents: read
       id-token: write
     env:
+      AZURE_TOKEN_CREDENTIALS: AzureCliCredential
       RG: rg-juriscope-stg-swc
       APP: ca-juriscope-stg
       PARAMS: infra/main.staging.bicepparam
