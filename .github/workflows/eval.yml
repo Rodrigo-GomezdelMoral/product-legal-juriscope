@@ -13,6 +13,7 @@ concurrency:
   cancel-in-progress: true
 
 env:
+  AZURE_TOKEN_CREDENTIALS: AzureCliCredential
   FOUNDRY_PROJECT_ENDPOINT: ${{ vars.FOUNDRY_PROJECT_ENDPOINT }}
   FOUNDRY_ACCOUNT_ENDPOINT: ${{ vars.FOUNDRY_ACCOUNT_ENDPOINT }}
   SEARCH_ENDPOINT: ${{ vars.SEARCH_ENDPOINT }}

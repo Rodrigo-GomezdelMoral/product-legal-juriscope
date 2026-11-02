@@ -72,7 +72,9 @@ phase closes and how each will be demonstrated (a test and, from phase 7, a live
    and reports only the file and the kind of identifier, never the value.
 2. **Zero secrets.** `DefaultAzureCredential` or `ManagedIdentityCredential` for every Azure call; local and shared-key auth disabled
    wherever the service allows it. The only secret in the system is the sign-in app's client secret, in each environment's Key Vault
-   and in a GitHub environment secret (ADR-006).
+   and in a GitHub environment secret (ADR-006). In the workflows, `AZURE_TOKEN_CREDENTIALS: AzureCliCredential` pins
+   `DefaultAzureCredential` to the `azure/login` session: a hosted runner's metadata endpoint can answer without a token and stop
+   the chain at `ManagedIdentityCredential` (deploy run of 2026-11-02, "No token received").
 3. **Budgets, enforced by `tests/test_budget.py`:** at most 90 files (excluding `docs/`, `data/`, `eval/datasets/`, `web/fixtures/`,
    `web/public/`, lock files and `node_modules/`); Python in `app/ ops/ eval/ load/` at most 1,400 non-blank lines; tests at most 700;
    Bicep at most 490; TypeScript under 800; functions at most 35 lines.
