@@ -10,7 +10,8 @@ Staging figures were measured in phase 7 (2026-11-01, times in UTC); figures mar
 | | Staging | Production |
 |---|---|---|
 | Resource group | `rg-juriscope-stg-swc` (Sweden Central) | `rg-juriscope-prod-swc` (Sweden Central) |
-| Container app | `ca-juriscope-stg` in `cae-juriscope-stg-spc` (Spain Central), 0 to 2 replicas | `ca-juriscope-prod` in `cae-juriscope-prod-spc` (Spain Central), 1 to 4 replicas |
+| Container app | `ca-juriscope-stg` in `cae-juriscope-env` (France Central), 0 to 2 replicas | `ca-juriscope-prod` in `cae-juriscope-env`, 1 to 4 replicas |
+| Container Apps environment | shared: `cae-juriscope-env` in `rg-juriscope-prod-swc`; staging's CI joins it with a custom role (ADR-014) | declared by production's Bicep |
 | Data | `cosmos-juriscope-stg-swc`, `stjuriscopestgswc`, `kv-juriscope-stg-swc` | `cosmos-juriscope-prod-swc`, `stjuriscopeprodswc`, `kv-juriscope-prod-swc` |
 | Telemetry | `appi-juriscope-stg-swc`, cap 0.3 GB a day | `appi-juriscope-prod-swc`, cap 1 GB a day |
 | Search index | `jur-articles-stg` | `jur-articles-prod` |
@@ -133,7 +134,12 @@ Read from the Actions runs with `gh run list --workflow deploy.yml` and `--workf
 ## Switching on and off
 
 - Staging scales to zero by itself.
-- Production's warm replica and its two log alert rules are the only standing cost (about 15.5 € a month, `docs/cost.md`).
+- **The environment is created by the author**, once, with `08-environment.sh` (ADR-014): it deletes the old Juriscope apps and
+  environments, validates and deploys `infra/modules/environment.bicep`, and gives the staging CI principal read and join on it.
+  `deploy.yml` stops with a clear error if it cannot read it. A change to the environment reaches both apps.
+- **After every deploy that recreates or moves an app,** run `SKIP_DEPLOY=1 07-staging.sh` again: the app's address, and so the
+  sign-in callback, changes.
+- Production's warm replica and its two log alert rules are the only standing cost (about 11.2 € a month, `docs/cost.md`).
 - Prompt 06 sets production `minReplicas` to 0 and disables the alert rules without deleting anything.
 
 ## Cost per environment

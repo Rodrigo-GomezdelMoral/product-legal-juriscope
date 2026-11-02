@@ -2,7 +2,7 @@
 
 ```mermaid
 graph LR
-    U["Lawyer · browser"] -->|Entra sign-in · Easy Auth| CA["ca-juriscope-env · FastAPI + web · Spain Central"]
+    U["Lawyer · browser"] -->|Entra sign-in · Easy Auth| CA["ca-juriscope-env in cae-juriscope-env · FastAPI + web · France Central"]
     CA --> WF["Juriscope workflow · WorkflowBuilder"]
     WF --> AN["analyze · Analyst · gpt-5-mini"]
     WF --> RT["retrieve · code"]
@@ -19,14 +19,16 @@ graph LR
 
 ## Regions
 
-- **Spain Central:** the Container Apps environment and app (`cae-juriscope-<env>-spc` and `ca-juriscope-<env>`), because Sweden Central allows one
-  managed environment per subscription and it is taken (author's decision, 2026-11-01). The shared AI Search service is also here.
+- **France Central:** one Container Apps environment, `cae-juriscope-env`, in `rg-juriscope-prod-swc`, shared by `ca-juriscope-stg`
+  (in `rg-juriscope-stg-swc`) and `ca-juriscope-prod`. The subscription allows 5 environments and each region 1 or 2; France Central was
+  the free one (ADR-014, author's decision of 2026-11-02).
+- **Spain Central:** the shared AI Search service.
 - **Sweden Central:** everything else of each environment (Cosmos DB, Storage, Key Vault, Application Insights, the runtime
   identity) and the shared Foundry account, registry and workspace.
 
-Search calls stay inside Spain Central. Model, Cosmos DB, Key Vault and telemetry calls cross to Sweden Central: a few KB per
-question, which phase 7 measures per step from the deployed app. Nothing is stored at rest in Spain Central except the public text of
-the Code in the search index (ADR-009).
+Every dependency call leaves France Central: search to Spain Central, model, Cosmos DB, Key Vault and telemetry calls to Sweden
+Central, a few KB per question. Phase 8 measures the steps again from the new region. Nothing is stored at rest in France Central,
+and in Spain Central only the public text of the Code in the search index (ADR-009).
 
 ## Request path
 
@@ -50,5 +52,6 @@ the Code in the search index (ADR-009).
 | `infra/main.bicep` | references to the runtime identity, the shared search service and the workspace; the environment's settings |
 | `modules/data.bicep` | Cosmos DB (serverless, continuous backup 7 days, two containers with a 90-day TTL, data-plane role), Storage (`corpus`, soft delete), Key Vault (RBAC, the client secret) and their roles |
 | `modules/monitor.bicep` | Application Insights (workspace-based, local auth off, daily cap), the workbook, the budget, the action group, two log alerts |
-| `modules/app.bicep` | the Container Apps environment and app (multiple revisions, probes, scale rule, Key Vault secret reference), Easy Auth, the 5xx metric alert |
+| `modules/app.bicep` | the app (multiple revisions, probes, scale rule, Key Vault secret reference) in the shared environment, Easy Auth, the 5xx metric alert |
+| `modules/environment.bicep` | `cae-juriscope-env` and its diagnostic setting to the shared workspace; production declares it, staging references it (ADR-014) |
 | `modules/roles.bicep` | built-in role names, shared by the modules |
