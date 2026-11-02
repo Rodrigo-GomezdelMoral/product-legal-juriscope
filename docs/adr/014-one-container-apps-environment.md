@@ -10,7 +10,7 @@ subscription:
 
 - **5 environments per subscription.** The preflight check of the environment resource alone, with concrete values, answers
   `MaxNumberOfGlobalEnvironmentsInSubExceeded`: *"cannot have more than 5 Container App Environments"*. The subscription already
-  holds 5 (Elevant staging and production, Folium staging, Trainyard staging, Juriscope staging). The limit is not listed on Learn's
+  holds 5, Juriscope staging among them. The limit is not listed on Learn's
   quotas page and does not appear in the usages API.
 - **A per-region limit.** The usages API (`ManagedEnvironmentCount`, *subscription and region* on Learn's quotas page) gives a
   limit of 1 at the first read on 2026-11-02 and of 2 half an hour later (Sweden Central 1, Spain Central 3, France Central 0 used).
@@ -18,7 +18,8 @@ subscription:
 - **Neither is visible to `validate` or `what-if` of `main.bicep`.** The environment is declared inside the `app` module, which
   receives runtime values (the action group's id, the Key Vault secret URI), so preflight never evaluates it and `what-if`
   short-circuits the nested deployments. On 2026-11-02 `validate` of `main.bicep` against production answered `Succeeded` while the
-  same environment validated alone failed on the 5-environment limit. That is how Folium's v1.0.0 release failed. Updating an
+  same environment validated alone failed on the 5-environment limit, so a release that creates an environment fails only at
+  deployment. Updating an
   environment that already exists passes preflight at 5 of 5.
 
 ## Options
@@ -36,7 +37,7 @@ subscription:
 
 - **`cae-juriscope-env`**, without `stg`, `prod` or a region code, in the existing `rg-juriscope-prod-swc`, in **France Central**
   (0 used). The rule of 2026-11-02: Spain Central only if removing Juriscope's environment there left it at 0, which would mean
-  Elevant had migrated; it leaves 2. `08-environment.sh` checks it again and stops if it has changed.
+  every other environment there had moved; it leaves 2. `08-environment.sh` checks it again and stops if it has changed.
 - **Production declares it** (`infra/modules/environment.bicep`, called from `app.bicep` when `env` is `production`), with the
   diagnostic setting that sends its logs to the shared workspace. **Staging references it** as `existing` in the production resource
   group. `ca-juriscope-stg` stays in `rg-juriscope-stg-swc`, `ca-juriscope-prod` in `rg-juriscope-prod-swc`, both in France Central.

@@ -114,17 +114,16 @@ phase closes and how each will be demonstrated (a test and, from phase 7, a live
   - **Settings:** `01-azure.sh` brings it to the landing-zone template's settings: system identity, roles only, semantic ranker on
     standard, shared tags, logs to the shared workspace, and Cognitive Services User and OpenAI User for its identity on Foundry.
   - **What spaincentral changes:** the region has no AI enrichment of its own, so built-in skills rely on keyless billing. There are
-    no higher-capacity partitions (2 GB, 1 GB of vectors, 15 indexes, shared by P05 to P08). Since 2026-11-02 the apps run in `francecentral` (ADR-014),
+    no higher-capacity partitions (2 GB, 1 GB of vectors, 15 indexes, shared). Since 2026-11-02 the apps run in `francecentral` (ADR-014),
     so search calls cross to `spaincentral` and model, Cosmos DB, Key Vault and telemetry calls to `swedencentral`.
   - **Phase 2** starts with the build prompt's search precheck; if any check fails, it stops and reports.
 - **Quotas:** Cosmos DB region access in `swedencentral` allowed, no accounts yet; no Key Vaults, active or soft-deleted; storage
   accounts 0 of 250 in the region; the global names `kv-juriscope-*`, `stjuriscope*` and `cosmos-juriscope-*` are available.
   **Container Apps managed environments:** the "15" read in phase 0 was wrong; the ARM usages API gives a limit of **1** in
-  `swedencentral`, already used by another product. **The author moved Juriscope's Container Apps to `spaincentral` on
+  `swedencentral`, already used in the subscription. **The author moved Juriscope's Container Apps to `spaincentral` on
   2026-11-01:** `cae-juriscope-stg-spc` and `ca-juriscope-stg`, `cae-juriscope-prod-spc` and `ca-juriscope-prod` (apps renamed in phase 7). Nothing
   else moves: Cosmos DB, Storage, Key Vault, Application Insights, the identities and the resource groups stay in `swedencentral`.
-  Phase 6 read `spaincentral` at 1 of 5 used (another product's staging), so Juriscope's two fit, but the other products' planned
-  environments there would fill it (5 of 5). Consumption cores are a per-environment quota, readable only once an environment exists.
+  Phase 6 read `spaincentral` at 1 of 5 used, so Juriscope's two fit. Consumption cores are a per-environment quota, readable only once an environment exists.
   **Superseded on 2026-11-02 (ADR-014):** one environment per product, `cae-juriscope-env`, in `rg-juriscope-prod-swc`, in
   `francecentral`; see the section *Container Apps environment* below.
 
@@ -183,8 +182,8 @@ phase closes and how each will be demonstrated (a test and, from phase 7, a live
   message type.
 - **Only answered turns enter the history,** capped at the last ten messages for the agents (ADR-002). The history provider gets a
   `container_client`, because data-plane RBAC cannot create containers.
-- **Local Cosmos DB:** `make emulator` runs `juriscope-cosmos` on host ports 8091 and 8090, so it can run beside other products'
-  emulators on 8081. `azure-core` refuses bearer tokens over HTTP, so the emulator needs a key, which it does not check.
+- **Local Cosmos DB:** `make emulator` runs `juriscope-cosmos` on host ports 8091 and 8090, so it can run beside another
+  emulator on the default 8081. `azure-core` refuses bearer tokens over HTTP, so the emulator needs a key, which it does not check.
   **Phase 4 owns the Cosmos client:** a local-only key branch, plus the `juriscope` database and the `history` and
   `conversations` containers, created only in the emulator. For phase 2 they were created once with `create_*_if_not_exists`.
 - **Settings** come from the environment or a gitignored `.env`, under the GitHub variable names plus `SEARCH_INDEX` and
@@ -337,9 +336,9 @@ phase closes and how each will be demonstrated (a test and, from phase 7, a live
 
 ## Decisions taken in phase 5
 
-- **`web/` copies Folium's client** (the first `product-*` with `web/`), changing only the name, logo, suggestions and logic:
-  React 19.3.1, TypeScript 7.0.2 (`tsc --noEmit` passes, no fallback to 6.x), Vite 8.3.5, `lucide-react` 1.65.0, `react-markdown`
-  10.1.0 (as in the sibling products), `@fontsource/inter` 5.3.0. `api.ts` holds the types, the SSE parser and the demo replay;
+- **`web/` uses the common chat client shell**, changing only the name, logo, suggestions and logic: React 19.3.1, TypeScript
+  7.0.2 (`tsc --noEmit` passes, no fallback to 6.x), Vite 8.3.5, `lucide-react` (1.59.0 since the web parity change below),
+  `react-markdown` 10.1.0, `@fontsource/inter` 5.3.0. `api.ts` holds the types, the SSE parser and the demo replay;
   `Article.tsx` the article and refusal cards; `main.tsx` the shell. TypeScript 422 of 799 lines.
 - **The interface** shows *Analysing the question* the moment a question is sent (19 to 38 ms, measured), then each `phase` event
   as a progress line; the article card shows the version badge, six clamped lines with *Show full article*, both versions side by
@@ -376,7 +375,7 @@ phase closes and how each will be demonstrated (a test and, from phase 7, a live
   - The runtime identity is `existing`; the Bicep reads the shared search service (its identity, for Storage Blob Data Reader on
     `corpus`) and the workspace id only. The registry login server and the Foundry and search endpoints come from the repository
     variables, so no CI identity needs a read role on the registry.
-  - Built-in role ids are written without hyphens in `modules/roles.bicep` (as in Folium), so the identifier scan stays strict
+  - Built-in role ids are written without hyphens in `modules/roles.bicep`, so the identifier scan stays strict
     without an allowlist.
   - API versions checked against the ARM provider listings and the Bicep 0.48.1 type index (linter `use-recent-api-versions` at 730
     days): App 2026-07-01, DocumentDB 2026-03-15, Storage 2026-06-01, Key Vault 2026-02-01, Insights components 2020-02-02,
@@ -403,7 +402,7 @@ phase closes and how each will be demonstrated (a test and, from phase 7, a live
   `/healthz` 200, `/` 200 (the built web) and `/api/me` 401.
 - **Workflows:** `deploy.yml` (Buildx, `az acr login`, `what-if`, revision by digest, corpus and index, canary health check, smoke,
   artifact `image-<sha>`), `release.yml` (artifact digest and `load-test` status, canary 10 % with an Application Insights check,
-  rollback), `load-test.yml`, `pages.yml`. Actions are pinned to majors only, because a SHA pin needs a `#` comment for its version.
+  rollback; since ADR-015 the `load-test` status is skipped when only `web/`, `docs/`, `.github/` or Markdown changed), `load-test.yml`, `pages.yml`. Actions are pinned to majors only, because a SHA pin needs a `#` comment for its version.
   The Bicep step is inside the `ci` job, so `04-required-checks.sh` need not run again. Dependabot watches `docker`.
 - **Cost in Spain Central** is about 42 % above Sweden Central for Container Apps. Production at rest is about 15.5 € a month, and the
   all-in cost per question at 350 questions is 0.049 to 0.051 € against the 0.05 € SLO (`docs/cost.md`, ADR-008). Phase 7 measures
@@ -570,7 +569,7 @@ phase closes and how each will be demonstrated (a test and, from phase 7, a live
   `MaxNumberOfGlobalEnvironmentsInSubExceeded`, *"cannot have more than 5 Container App Environments"*; 5 exist) and 1 per region
   (`ManagedEnvironmentCount` limit 1, then 2 half an hour later; used: swedencentral 1, spaincentral 3, francecentral 0). `validate` of `main.bicep` against
   production answered `Succeeded` and `what-if` short-circuited the three modules, because the environment sits in a module with
-  runtime values; updating an existing environment passes preflight at 5 of 5. Folium's v1.0.0 release failed this way.
+  runtime values; updating an existing environment passes preflight at 5 of 5. So a release that creates a new environment fails only at deployment.
 - **Decision (ADR-014):** `cae-juriscope-env` in `rg-juriscope-prod-swc`, `francecentral` (spaincentral would stay at 2 after
   removing Juriscope's, not 0). `infra/modules/environment.bicep` holds the environment and its diagnostic setting; `app.bicep` calls
   it only for production and references it as `existing` in the production resource group for both apps (`dependsOn` the module).
@@ -592,6 +591,19 @@ phase closes and how each will be demonstrated (a test and, from phase 7, a live
   script runs again after each deploy that recreates or moves an app, because the address changes.
 - **For phase 8:** measure every step again from France Central (all dependency calls now cross a region) before trusting SLA-02;
   `08-production.sh` needs no environment work, because production's Bicep redeclares the existing environment unchanged.
+
+## Web parity and release gate (author's decisions, 2026-11-02, branch `feature/web-parity`)
+
+- **`web/` matches the common chat client** in `index.html`, `styles.css` (the common stylesheet as is, plus Juriscope's article,
+  version, citation and notice rules after it), the shell in `main.tsx` and the shared dependency versions (`lucide-react` 1.59.0).
+  The user block and the user turn show the user icon; under the name, *User* (signed in with the role), *Demo* or *No Juriscope
+  role*. The empty state shows the 56 px icon. Progress is one status line with a spinner and the current stage (*Analysing the
+  question*, *Searching the Code*, *Reading N articles*, *Drafting*, *Verifying citations*), from the `phase` events; *Analysing
+  the question* still appears on send (ADR-013). Kept from phase 5: no `log` role or `aria-busy` on the thread, `inert` on `main`
+  while the drawer is open, Escape closes it. Checked with Playwright at 1440x900 and 390x844 (sizes equal; axe clean).
+- **Release gate (ADR-015):** `release.yml`'s verify job always requires the staging deploy of the tagged commit, and requires the
+  `load-test` status unless every path changed since the previous release that `release.yml` promoted matches `web/**`,
+  `docs/**`, any `*.md` or `.github/**`. No such release (v1.0.0 included) requires it. The log prints the paths and the decision.
 
 ## Verified names (installed wheels, 2026-10-30)
 

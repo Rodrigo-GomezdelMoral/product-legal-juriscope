@@ -66,7 +66,7 @@ Billed even when idle, and not counted per environment:
 - AI Search Basic in Spain Central: 64.88 € a month (0.0889 €/h);
 - registry Basic: 4.46 € a month.
 
-That is 69.34 € a month, shared by P05 to P08.
+That is 69.34 € a month for the shared base as a whole.
 
 Traffic from France Central to Sweden Central and Spain Central (the app's calls to the models, Cosmos DB, Key Vault, Application
 Insights and the search service, and the image pull) is a few KB per question. At 350 questions a month it is far below 1 GB, which costs cents at most.

@@ -4,7 +4,7 @@
 
 ## Context
 
-Four products (P05 to P08) run on one subscription with a shared base in `rg-aiplatform-shared-swc`: the Foundry account and its
+Juriscope runs on a subscription with a shared base in `rg-aiplatform-shared-swc`: the Foundry account and its
 model deployments, an AI Search service, a container registry and a Log Analytics workspace. The production budget is 25 € a month.
 Customer data is covered by professional secrecy (GDPR article 10).
 
@@ -38,7 +38,7 @@ a second replica (about 64.88 € a month) is rejected against a 25 € budget.
 
 ## Consequences
 
-- One Spain Central search service holds at most 15 indexes for all products; Juriscope uses three.
-- A shared model deployment can be saturated by another product (all four share 100K TPM). The API turns that into a 503 with
+- One Spain Central search service holds at most 15 indexes for everything on the base; Juriscope uses three.
+- A shared model deployment can be saturated by other callers (the 100K TPM is shared). The API turns that into a 503 with
   `Retry-After`, and the health model's *Model* flow shows it.
 - Deleting a product never touches the shared base; prompt 06 removes only the environment resource groups.

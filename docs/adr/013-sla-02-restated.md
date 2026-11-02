@@ -49,5 +49,5 @@ Option 3.
   (10 minutes to an accepted answer) untouched.
 - `minimal` effort stays a measured experiment for later, through the full suite against the baseline in `docs/evaluation.md`
   (ADR-010); if it passes, SLA-02 can tighten again.
-- A slower shared deployment (other products' load on the 100K TPM) shows up first as an SLO miss in the workbook and the latency
+- A slower shared deployment (other load on the shared 100K TPM) shows up first as an SLO miss in the workbook and the latency
   alert, before the SLA.
