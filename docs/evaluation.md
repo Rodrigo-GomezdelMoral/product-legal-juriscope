@@ -83,7 +83,8 @@ the cases it applies to, and its value is the share of those cases where the che
   artifact. The environment deploys only from `main`, so a full run of a branch is a local run (`python -m eval.run`).
 - **Dependabot pull requests** skip the job: they get no OIDC token or Actions secrets. A dependency bump that touches the gated
   paths is evaluated with a manual run after the merge.
-- **Index:** `jur-articles-local` (repository variable `EVAL_SEARCH_INDEX`) until phase 7 switches it to `jur-articles-stg`.
+- **Index:** the repository variable `EVAL_SEARCH_INDEX`: `jur-articles-local` until phase 7, `jur-articles-stg` since
+  2026-11-01 (`07-staging.sh`).
 
 ## Measurements, 2026-10-31 (v1 to v3 before the golden set was verified, v4 after)
 
@@ -202,3 +203,33 @@ v2 runs, so a failure there signals a regression, not noise; the widened v3 draf
 
 **Baseline for model and prompt changes ([ADR-010](adr/010-model-lifecycle.md)):** the `analyst_v5` column (2026-10-31, 23:24
 UTC), measured against the verified golden set with the judge reading the restated question.
+
+## Staging index, 2026-11-01 (phase 7)
+
+`jur-articles-stg` is the indexer's index over the consolidated PDF (two parts, 474 chunks of 2,000 characters with 500 of overlap);
+474 of 474 chunks map to an article (100 %, against the 99 % target). The same prompts and model as the baseline:
+
+| Metric | Threshold | Baseline, `jur-articles-local`, local, 2026-10-31 23:24 | `jur-articles-stg`, `eval.yml` run 41334415716, 2026-11-01 18:11 |
+|---|---|---|---|
+| Cases (golden, versions, unanswerable, adversarial) | | 60, 15, 20, 15 | 60, 15, 20, 15 |
+| `errors` | 0 | 0 | 0 |
+| `recall_at_5` | ≥ 0.85 | 0.950 (60) | 0.917 (60) |
+| `citation_precision` | ≥ 0.95 | 1.000 (59) | 1.000 (58) |
+| `groundedness` | ≥ 0.90 | 0.994 (84) | 0.994 (82) |
+| `version_accuracy` | ≥ 0.90 | 1.000 (15) | 1.000 (15) |
+| `correct_refusal` | ≥ 0.90 | 1.000 (20) | 1.000 (20) |
+| `false_refusal` | ≤ 0.05 | 0.013 (75) | 0.027 (75) |
+| `canary_appearances` | 0 | 0 of 15 | 0 of 15 |
+| `answer_language` | reported | 0.988 (84) | 0.988 (82) |
+| Seconds per question, p50 and p95 | | 6.3, 12.5 | 8.4, 12.3 |
+| Median cost of an answer | | 0.0041 € | 0.0049 € |
+
+- **The gate passes on the staging index.** Recall@5 drops 0.033: the local index holds one document per article, while PDF chunks
+  can split an article or mix two, so a gold article sometimes ranks sixth. False refusal rises from 1 to 2 of 75.
+- **Slower and dearer:** the judge met 34 `RateLimitError` 429s on the shared `gpt-5-mini` deployment and retried them (no case
+  failed), and the run went from a GitHub runner instead of the author's machine in Spain. Chunks that span several articles
+  are the likely reason for the higher cost: they bring more candidate articles to *Counsel*. Not measured per step.
+- **The pull-request suites on `jur-articles-stg`,** a local run with the author's identity at 12:32: passed, recall 1.000 (6),
+  citation precision 1.000 (6), canary 0 of 15, groundedness 0.971 (17).
+- **Baselines compare like with like:** a local run on `jur-articles-local` against the `analyst_v5` column above, and a manual
+  `eval.yml` run on `jur-articles-stg` against this column.

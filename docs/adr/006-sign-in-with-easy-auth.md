@@ -1,6 +1,7 @@
 # ADR-006 · Sign-in with Container Apps authentication, the code flow and a client secret in Key Vault
 
-**Status:** accepted, pending the live proof of phase 7 · **Date:** 2026-11-01
+**Status:** accepted; the Key Vault reference and the token checks proven in staging, the browser code flow pending · **Date:**
+2026-11-01
 
 ## Context
 
@@ -26,7 +27,10 @@ Option 1.
   - The container app declares a secret of the same name by Key Vault reference, read with the runtime identity, which holds Key
     Vault Secrets User on the vault.
 - **`clientSecretSettingName` points at that secret.** The portal stores the provider's secret this way; pointing it at a Key Vault
-  reference is inferred from that and proven in phase 7. **Fallback:** a plain Container Apps secret from the same `@secure()`
+  reference is inferred from that. **Proven in staging on 2026-11-01:** revision `r4-1` resolved `auth-client-secret` from the
+  vault with the runtime identity, and so did the load-test revision created after the temporary resource-group role was removed,
+  with only the vault-scoped role from Bicep. Easy Auth uses the secret only to redeem the code of an interactive sign-in, which
+  the author's browser run proves after the phase 7 merge. **Fallback:** a plain Container Apps secret from the same `@secure()`
   parameter, one line in `infra/modules/app.bicep`.
 - **The platform authenticates; the app authorizes.**
   - Unauthenticated requests are allowed through (`AllowAnonymous`), and the platform injects `X-MS-CLIENT-PRINCIPAL` only for a
@@ -46,8 +50,11 @@ Option 1.
 
 ## Consequences
 
-- **Spoofing:** the forged-header check runs live in phase 7. It sends `X-MS-CLIENT-PRINCIPAL` from outside with no session, and
-  the API must answer 401. Learn states that the platform strips the header from external requests; the check proves it.
+- **Spoofing, proven in staging (2026-11-01):** a forged `X-MS-CLIENT-PRINCIPAL` sent from outside with no session got 401; the
+  same header beside a valid token got 200 as the token's user, the forged name ignored, because Easy Auth replaces it. An invalid
+  bearer got 401.
+- **Claim shapes:** a v2 access token yields a principal without the `name_typ` claim, so `app/auth.py` falls back to `name`;
+  without it `/api/me` returned an empty name.
 - **Ordering:** the Key Vault role is assigned in the same deployment, before the container app (module dependency). RBAC can take
   minutes to propagate, so a first deployment may fail to resolve the secret; rerunning `deploy.yml` fixes it, and `OPERATIONS.md`
   says so.

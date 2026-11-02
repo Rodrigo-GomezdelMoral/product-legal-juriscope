@@ -39,5 +39,5 @@ designated as workflow output and never leave the graph.
 ## Consequences
 
 - Nothing on screen is ever withdrawn: the first claim the lawyer reads has already been verified.
-- Perceived latency is the whole run. SLA-02 (95 % of answers under 8 s, to the final event) is therefore a property of the full
-  pipeline, and the phase 2 measurements put it at risk (ADR-010).
+- Perceived latency is the whole run. SLA-02 (95 % of answers under 15 s, to the final event, since ADR-013) is therefore a property
+  of the full pipeline, and the phase 2 measurements put the original 8 s out of reach (ADR-010).

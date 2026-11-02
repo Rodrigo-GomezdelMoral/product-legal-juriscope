@@ -49,6 +49,7 @@ behaviour silently.
   question from 7.6 s to 4.6 s and p95 from 12.4 s to 8.2 s. But correct refusal fell from 1.00 to 0.80, groundedness from
   0.964 to 0.878, and citation precision from 0.695 to 0.603, and the canary leaked in 2 of 15 adversarial cases against 1.
   **The effort stays `low`.** SLA-02 is measured under load in phase 7; if it fails there, the levers are the brief's size
-  and a faster model, through the gate, not a lower effort.
+  and a faster model, through the gate, not a lower effort. Phase 7 measured *Counsel* at p95 7.5 to 8.0 s in staging, and
+  the author restated SLA-02 to 95 % under 15 s (ADR-013).
 - **Cost per answered question, measured:** median 0.0046 € (0.0042 to 0.0062 €), the semantic query included at its list price.
   Median tokens: *Analyst* 566 in and 249 out, *Counsel* 3,638 in and 777 out.

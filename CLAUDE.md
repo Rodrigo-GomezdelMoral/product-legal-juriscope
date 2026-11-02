@@ -47,9 +47,14 @@ phase closes and how each will be demonstrated (a test and, from phase 7, a live
   The counts come from `make budget`.
 - **Identity is the author's.** App registrations, role assignments, federated credentials, GitHub secrets and variables go in
   `../_scripts/product-legal-juriscope/<nn>-<what>.sh`; write the script and stop. Written: `01-codeql.sh` (phase 1), `03-eval-variables.sh`
-  (phase 3), `04-eval-identity.sh` and `04-required-checks.sh` (phase 4), `05-codeql-web.sh` (phase 5, after its merge). Planned: `07-staging.sh` (phase 7, which must also give
-  `gh-product-legal-juriscope-pull-request` Search Index Data Reader on `jur-articles-stg` when it switches `EVAL_SEARCH_INDEX`),
-  `08-production.sh` (phase 8).
+  (phase 3), `04-eval-identity.sh` and `04-required-checks.sh` (phase 4), `05-codeql-web.sh` (phase 5, after its merge), `07-staging.sh`
+  (phase 7: sign-in app `product-legal-juriscope-staging` with v2 tokens, `Juriscope.User` for the author and the staging CI
+  principal and a `user_impersonation` scope pre-authorized for the Azure CLI; `AUTH_CLIENT_SECRET` and `AUTH_CLIENT_ID` in
+  `staging`; `DEPLOY_ENABLED=true` **at repository level**, because a job-level `if` is evaluated before environment variables
+  exist; a temporary Key Vault Secrets User on the resource group for the first revision, removed after it; `deploy.yml` on
+  `main`; the redirect URI; Search Index Data Reader on `jur-articles-stg` for the pull-request identity; `EVAL_SEARCH_INDEX`), `07-live-runs.sh`
+  (phase 7: `load-test.yml`, the full `eval.yml`, the browser sign-in; results to `%TEMP%\juriscope-p07`).
+  Planned: `08-production.sh` (phase 8; `DEPLOY_ENABLED` is not read by `release.yml`).
 - **Azure only in phases 7 and 8.** Until then: local, the Cosmos DB emulator, Bicep `what-if`, and the shared model deployments and
   `jur-articles-local` index with the author's own identity. Before creating anything that bills by the hour, state its price and how
   it is switched off. Staging ends every deploying phase at zero replicas.
@@ -116,7 +121,7 @@ phase closes and how each will be demonstrated (a test and, from phase 7, a live
   accounts 0 of 250 in the region; the global names `kv-juriscope-*`, `stjuriscope*` and `cosmos-juriscope-*` are available.
   **Container Apps managed environments:** the "15" read in phase 0 was wrong; the ARM usages API gives a limit of **1** in
   `swedencentral`, already used by another product. **The author moved Juriscope's Container Apps to `spaincentral` on
-  2026-11-01:** `cae-juriscope-stg-spc` and `ca-juriscope-stg-spc`, `cae-juriscope-prod-spc` and `ca-juriscope-prod-spc`. Nothing
+  2026-11-01:** `cae-juriscope-stg-spc` and `ca-juriscope-stg`, `cae-juriscope-prod-spc` and `ca-juriscope-prod` (apps renamed in phase 7). Nothing
   else moves: Cosmos DB, Storage, Key Vault, Application Insights, the identities and the resource groups stay in `swedencentral`.
   Phase 6 read `spaincentral` at 1 of 5 used (another product's staging), so Juriscope's two fit, but the other products' planned
   environments there would fill it (5 of 5). Consumption cores are a per-environment quota, readable only once an environment exists.
@@ -419,6 +424,143 @@ phase closes and how each will be demonstrated (a test and, from phase 7, a live
 
   Left for phase 7: the Key Vault role may not have propagated when the first revision resolves the secret; rerun the workflow,
   or let `07-staging.sh` grant Key Vault Secrets User to the runtime identity in advance.
+
+## Phase 7 live evidence (first session, 2026-11-01, times in UTC from Azure; the laptop clock runs about 2 min 10 s fast)
+
+- **Staging as deployed:** revision `r4-1` (deploy runs of 12:11 and 12:15, digest of `c074a7e`), 0.5 vCPU / 1 GiB, min 0,
+  max 2, HTTP rule at 10 concurrent requests, traffic pinned by revision name (so `load-test.yml`'s revision gets 0 %). The
+  `auth-client-secret` secret is a Key Vault reference resolved with the runtime identity; the temporary Key Vault Secrets User on
+  the resource group is gone and the vault-scoped one (Bicep) remains. Cosmos DB: `Continuous7Days` on serverless (RPO 15 min
+  holds); both containers `defaultTtl` 7,776,000 (REQ-10).
+- **REQ-07 and Spoofing, live (12:20):** no session → 401 problem+json on `/api/me`, `/api/conversations` and `/api/meta`; an
+  invalid bearer → 401; a forged `X-MS-CLIENT-PRINCIPAL` (plus `-ID`) without a token → 401; the same forged header with a valid
+  token → 200 as the token's user, the forged name ignored (Easy Auth replaces the header). Unknown conversation id → 404, and its
+  `trace_id` is the request's `operation_Id` in Application Insights. 403 has no live check: every principal at hand holds the role
+  (test only).
+- **Easy Auth claim shapes:** a v2 user token from the Azure CLI (scope `user_impersonation`) carries `roles` and `oid`, which the app
+  accepts; but the principal's `name_typ` claim is absent, so `/api/me` returned an empty name and the UI showed "Signed out".
+  **Fixed:** `app/auth.py` falls back to the `name` claim; `test_api.py`'s Entra principal now uses the SOAP `name_typ` and fails
+  without the fix. Deploys with the phase 7 merge.
+- **Every *Must* in the browser** (headless Chromium, the deployed web, every request carrying the author's bearer token; 12:22 to
+  12:24; screenshots outside the repository): S1 English reckless homicide → answer in English, 1 article card (version in force since
+  2022-09-15 · BOE-A-2022-14965), 2 boe.es links, "See also" 1, *Show full article* expands, 👍 and copy sent; S2 art. 139 in
+  May 2014 → both versions side by side ("Applies on 2014-05-15" 1996 wording beside "In force today" 2015); S3 Supreme Court
+  question → refusal card (case law); S4 limitation of fraud → 3 cards, follow-up "¿Y si la estafa es agravada?" → 2 cards on
+  aggravated fraud through history; reload, resume from the sidebar (2 turns, 5 cards), delete with confirmation, gone after reload. Time from
+  send to the final state: 9.8, 10.4, 8.3 and 12.9 s for answers (11.4 s on a first attempt), 3.7 s for the refusal;
+  *Analysing the question* within 10 to 27 ms. **Not yet proven:** the interactive code-flow sign-in (ADR-006), in
+  `07-live-runs.sh` step 4.
+- **KPI events in KQL:** `QuestionAsked` 6, `AnswerDelivered` 6 (outcome, claims, `dropped_claims` 0, `cost_eur`),
+  `AnswerAccepted` 2, `FeedbackGiven` 1, all with `user_hash` and `turn_id`, no text.
+- **Sampling defect, fixed:** `azure-monitor-opentelemetry` 1.8.11 defaults to a rate-limited sampler of 5 traces per second
+  (`_utils/configurations.py`); the page reload's burst lost `GET /api/conversations`, the conversation read and the `DELETE`, and
+  the workbook's `count()` tiles would undercount. `telemetry.configure` now passes `sampling_ratio=1.0`. Logs (KPI events) were
+  never sampled.
+- **Latency per step** (spans, partly sampled): *Analyst* 2.5 s, `retrieve` p50 0.83 s (search call 0.6 s, same region), *Counsel*
+  (`draft`) p50 5.2 s, p95 7.5 s, `verify` 4 ms. Counsel alone nearly uses the 8 s of SLA-02, so SLA-02 is at risk before the load
+  test runs.
+- **Cold start:** the first request after scaling to zero took 30.1 s, the next ones 0.04 to 0.06 s (ADR-008's warm replica).
+- **Workbook** `Juriscope KPIs, SLOs and health (stg)`, deployed with the four tags: 10 of 11 queries run. **K4 was broken**:
+  `startofweek(timestamp, 1)` labels the *next* Sunday, and a column used in the same `extend` that defines it is rejected
+  (BadArgumentError). **Fixed** in `infra/modules/monitor.bicep` (Monday weeks: `startofweek(timestamp - 1d) + 1d`, two
+  `extend`s); the fixed query runs.
+- **Alerts:** `alert-juriscope-stg-5xx` (metric), `-availability` and `-latency` (log, every 15 min), all disabled, as designed;
+  plus the *Failure Anomalies* smart detector that Application Insights creates by itself (free, not in Bicep).
+- **Cost per question (measured):** answers 0.0046 to 0.0060 € (median 0.0052 €, 5), refusal 0.0007 €; the workbook tile gives
+  0.0211 € all-in in staging (6 questions, 0.1 € standing). Production at 350 questions: (15.5 + 350 × 0.0052) ÷ 350 ≈ **0.0495 €**,
+  inside the 0.05 € SLO with almost no margin.
+- **CPU and memory before the load test** (one user, real model): CPU max 0.065 vCPU, working set max 463 MB (0.43 GiB). 0.25 vCPU
+  / 0.5 GiB would leave about 70 MB of memory at one user: the size-down looks unsafe, pending the load test's peak.
+- **PR suites on `jur-articles-stg`, local run with the author's identity (12:32):** passed; recall 1.000 (6), citation
+  precision 1.000 (6), version 1.000 (2), correct refusal 1.000 (2), false refusal 0 (8), canary 0 (15), groundedness 0.971 (17),
+  errors 0; p50 8.1 s, p95 12.3 s at four concurrent; median 0.0052 €. The full suite runs in `eval.yml` (`07-live-runs.sh`).
+- **Restore drill (RTO):** `az cosmosdb restore` of `cosmos-juriscope-stg-swc` to `cosmos-juriscope-stg-drill` (swedencentral) at
+  12:24:14.5, started 12:31:30, `Succeeded` 12:42:36 (11 min 6 s); local auth was enabled on the restored account only, and a
+  read-only key read 3 conversations and 4 history messages at 12:43:47: **12 min 17 s from the decision to readable data**,
+  against the 4 h RTO. The restored state matched the live one about 25 s before the requested point (the conversation started at
+  12:23:51 was missing), well inside the 15 min RPO. Not rehearsed: pointing the app at a restored account (the Bicep's Cosmos
+  account name and a redeploy); `OPERATIONS.md` must say so. The restored account was then deleted. Restores of continuous
+  backups bill per GB restored, so a few KB cost nothing measurable.
+- **Mapping rate:** 474 of 474 chunks of `jur-articles-stg` map to an article (100 %), measured before this session.
+- **Advisor (2026-11-01):** nothing on the staging resource group. Shared base: registry geo-replication and Premium
+  (ADR-012), a second search replica (ADR-007), a newer Azure OpenAI API version on the Foundry account (the SDK picks it); the
+  subscription-level Service Health alert is outside this repository. The staging resources were created at 11:16, so Advisor
+  may not have assessed them yet: read it again before closing.
+- **Cost Management:** no rows for `rg-juriscope-stg-swc` yet (data lags up to a day); the shared base shows search 1.34 € and
+  models 8.26 € on 2026-10-31.
+- **DORA (staging):** 3 `deploy.yml` runs with a result, 1 failed (11:37, Layout rejected) and restored by PR #10 at 12:11
+  (34 min); lead time of PR #10 12 min (opened 11:59, deployed 12:11).
+- **Open for the second session** (after the author's `07-live-runs.sh`, results in `%TEMP%\juriscope-p07`):
+  - SLA-02 p95, error rates, replicas, CPU and memory from `load/` (`real_stats.csv`, `platform.tsv`), and the size-down decision
+    against the cost-per-question SLO (expected: keep 0.5 vCPU / 1 GiB, given 0.43 GiB at one user);
+  - the full suite on `jur-articles-stg` from `eval/`, compared with the local index's 23:24 baseline in `docs/evaluation.md`;
+  - the browser sign-in answers (`browser.txt`), Advisor again, Cost Management by tag;
+  - the docs: `OPERATIONS.md` (load tests, restore drill and RTO, DORA, `DEPLOY_ENABLED` at repository level, alerts),
+    `PRODUCT.md` (`DEPLOY_ENABLED`), `cost.md`, `THREAT_MODEL.md` proofs, ADR-006 (Key Vault reference proven), ADR-008 (cold
+    start 30.1 s), `evaluation.md`; then the phase block and `publish-staging.sh`.
+  - **Decision for the author, SLA-02:** *Counsel* alone takes p50 5.2 s and p95 7.5 s, so 95 % under 8 s is out of reach with
+    `gpt-5-mini` at `low` effort whatever the rest does. Options: (a) both agents at `minimal`, which failed the gate with v2
+    prompts and would need a full-suite run with v4/v5; (b) a non-reasoning model for *Counsel*, a new deployment in the shared base
+    (author's change, gate against the baseline); (c) restate SLA-02 from evidence, for example 95 % under 15 s to the final event,
+    with the progress line inside 0.1 s, and keep the latency SLO in step. Recommended: (c) now, (a) as a measured experiment
+    later, because a 12 s answer against 30 to 75 minutes of manual research does not move K1, and the prompt forbids promoting on a
+    missed SLA.
+
+## Phase 7 second session (2026-11-02, from the author's `07-live-runs.sh` of 2026-11-01; times in UTC)
+
+- **`load-test.yml` run 41331036489** (digest of `c074a7e`): load revision `load1-1` 17:22:42–17:57:49, real model on the stable
+  revision `r4-1` 17:57:51–17:59:51. Asks, p95, failed: normal (5 users, 3 min) 79, 5.1 s, 0; peak (20, 2 min) 203, 7.7 s, 0; soak
+  (5, 10 min) 266, 1.4 s, 0; stress (5 to 100 users, 20 min) 4,159, p50 2.3 s, p95 10 s, 0 failed (never reached 5 % errors; CPU
+  saturated from about 70 users, readiness and liveness probes timing out 17:55–17:57); real model (3 users, 2 min) 14, p50 9.7 s,
+  p95 37 s, 0. Red only on the SLA-02 gate. No 429 in any dependency during the whole run.
+- **Why 37 s:** a cold start of the stable revision, not the model. `r4-1` had been idle for the 35 minutes of the load revision's
+  scenarios and was at zero replicas. ContainerAppSystemLogs: KEDA scaled it 0 → 1 at 17:57:51.7 (the first ask), image pull at
+  17:58:06.8, container started 17:58:07.9; Application Insights: the three first asks reached the app at 17:58:16.9 (25.5 s after
+  Locust sent them) and took 10.3, 11.3 and 10.3 s, so 36 to 37 s at the client. With 14 samples, those 3 are the p80 and above.
+  Server-side, all 15 real asks: 7.2 to 13.7 s, median 9.5 s, p95 13.7 s. Spans (11 sampled workflows): workflow p50 8.4 s, max
+  11.5 s; *Analyst* p50 2.7 s, p95 6.5 s; `retrieve` p50 0.69 s, p95 1.2 s (search 0.46 s); *Counsel* p50 4.1 s, p95 8.0 s.
+  Cost per answer median 0.0051 € (15).
+- **Size:** CPU and memory maxima per revision in the window: `load1-1` 0.51 vCPU and 0.53 GiB (stress), 0.22 vCPU and 0.40 GiB
+  at the peak scenario; `r4-1` 0.08 vCPU and 0.40 GiB at 3 users on the real model. **Kept 0.5 vCPU / 1 GiB** (ADR-008, `cost.md`).
+- **`eval.yml` full suite, run 41334415716** (18:11, `jur-articles-stg`, 110 cases): passed. Recall@5 0.917 (60), citation
+  precision 1.000 (58), version 1.000 (15), correct refusal 1.000 (20), false refusal 0.027 (75), canary 0 (15), groundedness 0.994
+  (82), answer language 0.988 (82), errors 0; p50 8.4 s, p95 12.3 s at four concurrent; median 0.0049 €. The judge's calls met 34
+  `RateLimitError` 429s on the shared `gpt-5-mini` and retried them; no case failed.
+- **Rename (author's decision):** the apps become `ca-juriscope-stg` and `ca-juriscope-prod` (no region code, like the other
+  products); environments stay `cae-juriscope-<env>-spc`. `infra/modules/app.bicep`, the three workflows, `OPERATIONS.md`,
+  `architecture.md`, `07-staging.sh` (`SKIP_DEPLOY=1` deletes `ca-juriscope-stg-spc` and drops its callback) and `07-live-runs.sh`.
+  The deploy after the phase 7 merge creates the new app; the browser sign-in (`ONLY=browser`) moves to after it.
+- **SLA-02, author's decision of 2026-11-02 (ADR-013):** 95 % under 15 s to the final event plus *Analysing the question* within
+  0.1 s (browser); latency SLO p95 < 13 s (the old 2 s gap). `load-test.yml` waits for `/healthz` 200 on the stable revision, then
+  runs the real-model scenario 5 minutes (`SHAPES["real"] = (3, 300)`, about 35 asks); its gate is `-lt 15000`. Moved with it: the
+  workbook tile and the latency alert in `monitor.bicep` (13 and 15), `release.yml`'s canary p95 (13,000 ms), `PRODUCT.md`,
+  `OPERATIONS.md`, ADR-004, 008 and 010, and the header of `07-live-runs.sh`.
+
+## Phase 7 close (2026-11-02)
+
+- **Also fixed:** `load-test.yml`'s replicas, CPU and memory step printed empty values (`max()` over a list with nulls); the query
+  is now `max(timeseries[0].data[?maximum].maximum)`, checked against the 2026-11-01 window (2 replicas, 0.51 vCPU, 0.53 GiB).
+  Per revision, the load revision reached 2 replicas in soak and stress, 1 in normal and peak.
+- **Docs:** `OPERATIONS.md` (load-test table, restore drill and RTO, DORA, `DEPLOY_ENABLED` at repository level, alerts checked
+  disabled), `THREAT_MODEL.md` proofs, ADR-006 (Key Vault reference proven: `r4-1` and the later load revision resolved it, the
+  second with only the vault-scoped role; the browser code flow pending), `evaluation.md` (staging column against the baseline),
+  `cost.md` (Cost Management), ADR-013. `PRODUCT.md` has no variables table, so `DEPLOY_ENABLED` is documented in `OPERATIONS.md`.
+- **Advisor (2026-11-02):** staging: *increase the minimal replica count* (Medium), justified by ADR-008 (staging scales to zero;
+  production has one warm replica). Shared base: the same four as before (ADR-007, ADR-012; the API version is the SDK's).
+- **Cost Management (2026-11-02):** `rg-juriscope-stg-swc` 0.40 € month to date, Cosmos DB 0.399 € (the load test), no
+  Container Apps charge yet. Grouping by two tag keys returns `None` for the second one, and the API then answered 429: read
+  `environment` alone in phase 8.
+- **Role listing (2026-11-02):** staging CI holds the nine roles of the prompt's table, production CI four; RBAC Administrator with
+  its condition on its own resource group only; no Owner, no subscription scope.
+- **DORA (staging):** 3 `deploy.yml` runs with a result, 2 successful, change failure rate 1 of 3, time to restore 34 min, lead time
+  5 min from merge (12 min from opening PR #10).
+- **Post-merge, by the author, in order:** the merge's `deploy.yml` creates `ca-juriscope-stg`; `SKIP_DEPLOY=1 07-staging.sh`
+  (redirect URI of the new app, old `ca-juriscope-stg-spc` and its callback removed); `ONLY=browser 07-live-runs.sh` (the code
+  flow, ADR-006); `ONLY=load 07-live-runs.sh` (the SLA-02 gate rerun). Results go to `%TEMP%\juriscope-p07`.
+- **For phase 8:** read `browser.txt` and the new load results first. If the rerun misses 15 s, no release: the levers are
+  ADR-013's options 1 and 2. The `load-test` status is per commit and `release.yml` requires it on the tagged commit with its digest,
+  so the load test runs again after the phase 8 merge. `08-production.sh` must give the production CI principal `Juriscope.User`
+  and set v2 tokens. Staging is at zero (min 0; the new app starts at zero after its deploy).
 
 ## Verified names (installed wheels, 2026-10-30)
 

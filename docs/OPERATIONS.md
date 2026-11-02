@@ -3,15 +3,14 @@
 The author holds every operational role: deployer, approver, on-call and incident commander. This file says what runs where, how a
 change moves, how to undo it and who acts on each alert.
 
-Figures marked *phase 7* or *phase 8* are filled in when those phases measure them live. Until then this file describes the procedure
-only.
+Staging figures were measured in phase 7 (2026-11-01, times in UTC); figures marked *phase 8* come with the first release.
 
 ## Environments
 
 | | Staging | Production |
 |---|---|---|
 | Resource group | `rg-juriscope-stg-swc` (Sweden Central) | `rg-juriscope-prod-swc` (Sweden Central) |
-| Container app | `ca-juriscope-stg-spc` in `cae-juriscope-stg-spc` (Spain Central), 0 to 2 replicas | `ca-juriscope-prod-spc` in `cae-juriscope-prod-spc` (Spain Central), 1 to 4 replicas |
+| Container app | `ca-juriscope-stg` in `cae-juriscope-stg-spc` (Spain Central), 0 to 2 replicas | `ca-juriscope-prod` in `cae-juriscope-prod-spc` (Spain Central), 1 to 4 replicas |
 | Data | `cosmos-juriscope-stg-swc`, `stjuriscopestgswc`, `kv-juriscope-stg-swc` | `cosmos-juriscope-prod-swc`, `stjuriscopeprodswc`, `kv-juriscope-prod-swc` |
 | Telemetry | `appi-juriscope-stg-swc`, cap 0.3 GB a day | `appi-juriscope-prod-swc`, cap 1 GB a day |
 | Search index | `jur-articles-stg` | `jur-articles-prod` |
@@ -20,15 +19,19 @@ only.
 
 ## Promote, roll back, patch
 
+- **Switch:** `deploy.yml` runs only while the **repository** variable `DEPLOY_ENABLED` is `true`. It cannot be an environment
+  variable: a job-level `if` is evaluated before the job's environment exists. `release.yml` does not read it.
 - **To staging:** merge a PR to `main`. `deploy.yml` builds the image once, deploys it by digest with `what-if` first, refreshes the
   corpus and the index (a no-op when the PDF is unchanged), checks `/healthz` on the `canary` label and moves all traffic. It then
   runs the smoke test and uploads the digest as the artifact `image-<sha>`.
-- **Load test before any release:** `gh workflow run load-test.yml --ref main`. It sets the commit status `load-test` that
-  `release.yml` requires.
+- **Load test before any release:** `gh workflow run load-test.yml --ref main`. It sets the commit status `load-test`, naming the
+  digest it tested, that `release.yml` requires.
 - **To production:** `gh release create vX.Y.Z --notes-file <CHANGELOG section>`, then approve the `production` deployment.
   `release.yml` promotes the staging digest of the tagged commit, with 10 % canary for ten minutes and then 100 %, or rolls back.
 - **First deployment of an environment:** the Key Vault role and the container app are created in one deployment. If the revision
-  fails to read `auth-client-secret` while RBAC propagates, rerun the workflow.
+  fails to read `auth-client-secret` while RBAC propagates, rerun the workflow. Staging avoided it with a temporary Key Vault
+  Secrets User on the resource group (`07-staging.sh`), removed after the first revision; later revisions resolve the secret with
+  the vault-scoped role alone.
 - **Rollback:**
   - staging: `gh workflow run deploy.yml --ref main -f digest=<previous digest>`;
   - production: `gh workflow run release.yml --ref <previous tag>`, with approval.
@@ -47,19 +50,29 @@ only.
 |---|---|---|---|
 | `alert-juriscope-prod-5xx` | metric, app | more than 5 server errors in 15 minutes | the author: the workbook's health model, then roll back or scale |
 | `alert-juriscope-prod-availability` | log, every 15 min | availability of `/api` below 99.7 % over the last hour, with at least 20 requests | the author: triage by flow (*Ask*, *History*, *Model*) |
-| `alert-juriscope-prod-latency` | log, every 15 min | p95 of the ask route at or above 6 s over the last hour, with at least 5 questions | the author: *Model* flow and the shared deployment's TPM |
+| `alert-juriscope-prod-latency` | log, every 15 min | p95 of the ask route at or above 13 s (the latency SLO) over the last hour, with at least 5 questions | the author: *Model* flow and the shared deployment's TPM |
 | `budget-juriscope-<env>` | budget, both environments | 50, 80 and 100 % of 10 € (staging) or 25 € (production) | the author: Cost Management by tag; staging to zero, or production `minReplicas 0` |
 
 Each alert goes to its environment's action group `ag-juriscope-<env>-swc`, which e-mails `ALERT_EMAIL_ADDRESS`. Staging declares the
-same rules disabled, so that an enabled log rule never bills there.
+same rules disabled, so that an enabled log rule never bills there (checked deployed on 2026-11-01: the three rules exist,
+disabled). Application Insights adds a *Failure Anomalies* smart detector by itself; it is free and not in Bicep.
 
 ## Backup and restore
 
 - **Cosmos DB:** continuous backup, 7-day tier, point-in-time restore to a new account. RPO 15 minutes. Learn does not state the
-  continuous tier for serverless accounts explicitly; phase 7 confirms it on the deployed account, or falls back to the free
-  periodic backup and updates the RPO.
-- **Restore drill (phase 7):** restore staging to a new account at a point in time, point a revision at it, read a conversation,
-  measure the RTO (target 4 h), delete the restored account.
+  continuous tier for serverless accounts explicitly; the deployed staging account shows `Continuous7Days` on serverless.
+- **Restore drill (staging, 2026-11-01):**
+  1. `az cosmosdb restore` of `cosmos-juriscope-stg-swc` to the new account `cosmos-juriscope-stg-drill` at 12:24:14, decided
+     at 12:31:30;
+  2. `Succeeded` at 12:42:36 (11 min 6 s);
+  3. local auth enabled on the restored account only, and a read-only key read 3 conversations and 4 history messages at 12:43:47:
+     **12 min 17 s from the decision to readable data, against the 4 h RTO**;
+  4. the restored state matched the live one about 25 s before the requested point (a conversation started at 12:23:51 was
+     missing), inside the 15 min RPO;
+  5. the restored account was deleted. Restores bill per GB restored, so a few KB cost nothing measurable.
+  - **Not rehearsed:** pointing the app at a restored account. That means changing the Cosmos DB account name in
+    `infra/modules/data.bicep` (or restoring under the original name after deleting it) and redeploying; budget about 30 minutes
+    more for it, still far inside the RTO.
 - **Search index:** rebuilt from the corpus with `python -m ops.index --target <env> --storage-id <id>`.
 - **Version store:** part of the image; any earlier image is a full copy.
 
@@ -84,12 +97,25 @@ of traffic, and runs Locust 2.47.0 headless against that label:
 | soak | 5 | 10 min |
 | stress | +5 a minute | until errors pass 5 %, at most 20 min |
 
-It then runs two minutes at three users on the real model through the stable revision. Search is real in every scenario, so semantic
-queries bill. Promotion goes ahead only if the real-model p95 of `ask` is under 8 s (SLA-02) and no scenario fails more than 1 %.
+It then waits for `/healthz` 200 on the stable revision and runs five minutes at three users on the real model through it. Search is
+real in every scenario, so semantic queries bill. Promotion goes ahead only if the real-model p95 of `ask` is under 15 s (SLA-02,
+restated in ADR-013) and no scenario fails more than 1 %. Replicas, CPU and memory maxima come from Azure Monitor.
 
 | Date | Scenario | Users | Requests/s | p50 | p95 | p99 | Errors | Replicas |
 |---|---|---|---|---|---|---|---|---|
-| *phase 7* | | | | | | | | |
+| 2026-11-01 | normal, model double | 5 | 0.45 | 1.0 s | 5.1 s | 5.2 s | 0 of 79 | 1 |
+| 2026-11-01 | peak, model double | 20 | 1.69 | 1.2 s | 7.7 s | 7.8 s | 0 of 203 | 1 |
+| 2026-11-01 | soak, model double | 5 | 0.44 | 0.97 s | 1.4 s | 1.7 s | 0 of 267 | 2 |
+| 2026-11-01 | stress, model double | 5 to 100 | 3.47 | 2.3 s | 10 s | 16 s | 0 of 4,159 | 2 (the maximum) |
+| 2026-11-01 | real model, cold stable revision | 3 | 0.13 | 9.7 s | 37 s | 37 s | 0 of 14 | 0 → 1 |
+
+Rates and percentiles are for the ask route at the client (Locust 2.47.0, run 41331036489, digest of `c074a7e`). **The run failed
+the SLA-02 gate** as it stood then (p95 < 8 s): the stable revision had idled at zero replicas through the 35 minutes of the
+model-double scenarios, and the first three real asks waited 25.5 s for a replica. Server-side, the 15 real asks took 7.2 to
+13.7 s (median 9.5 s, p95 13.7 s). The stress ramp never reached 5 % errors: CPU saturated at 0.51 vCPU from about 70 users and
+probes timed out in the last two minutes, without a failed ask. Working set peaked at 0.53 GiB, so the replica stays at 0.5 vCPU
+and 1 GiB (ADR-008). No dependency returned 429. **The gate is rerun with the warm-up and the longer real-model scenario after the
+phase 7 merge, before any release.**
 
 ## DORA
 
@@ -99,7 +125,10 @@ Read from the Actions runs with `gh run list --workflow deploy.yml` and `--workf
 - change failure rate (failed or rolled-back releases);
 - time to restore.
 
-*Phase 8.*
+| Window | Deployment frequency | Lead time | Change failure rate | Time to restore |
+|---|---|---|---|---|
+| Staging, 2026-11-01 | 3 `deploy.yml` runs with a result, 2 successful (one commit, `c074a7e`) | PR #10: 5 min from merge (12:06) to staging (12:11), 12 min from opening | 1 of 3 (11:37, the Layout skill rejected in Spain Central) | 34 min, restored by PR #10 |
+| Production | *phase 8* | | | |
 
 ## Switching on and off
 
@@ -109,4 +138,7 @@ Read from the Actions runs with `gh run list --workflow deploy.yml` and `--workf
 
 ## Cost per environment
 
-Estimated in `docs/cost.md`; measured in Cost Management by the `project` and `environment` tags at the end of phase 7.
+Estimated in `docs/cost.md`. Cost Management, read on 2026-11-02 (data lags up to a day): `rg-juriscope-stg-swc`, tag
+`project=product-legal-juriscope`, 0.40 € month to date, almost all Cosmos DB request units from the load test's 4,700 asks,
+with no Container Apps charge yet. The shared base (search, models, registry) bills to `rg-aiplatform-shared-swc` and is not split
+by product. Production has no cost until phase 8.
