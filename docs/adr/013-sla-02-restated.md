@@ -37,7 +37,8 @@ Option 3.
 - **SLA-02:** 95 % of standard questions answered in under 15 s, from the request to the final server-sent event, and *Analysing the
   question* on screen within 0.1 s of sending (measured in the browser).
 - **Latency SLO:** p95 < 13 s for the ask route, keeping the 2 s gap under the SLA that the old pair (6 and 8 s) had. The workbook
-  tile, the production latency alert and `release.yml`'s canary check use it.
+  tile and the production latency alert use it; `release.yml`'s canary check used it until release 1.0.1, when it turned out
+  that the check could not see the canary's requests (ADR-012, revised): the p95 of one revision is not measured yet.
 - **`load-test.yml`:** waits for `/healthz` 200 on the stable revision before the real-model scenario, which now runs 5 minutes at 3
   users (about 35 asks, about 0.2 € of tokens) instead of 2. The gate fails at p95 ≥ 15,000 ms or more than 1 % failed asks.
 - **The gate is rerun after the phase 7 merge, before any release.** The 2026-11-01 run stays recorded as failed in

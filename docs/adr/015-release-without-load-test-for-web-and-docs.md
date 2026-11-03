@@ -34,7 +34,7 @@ release spends the time and the shared quota and proves nothing new about the AP
 ## Consequences
 
 - A web, docs or workflow release goes to production after the staging deploy, without waiting for the load test. The canary with
-  its Application Insights check (ADR-012) still guards production.
+  its smoke test and its requests and 5xx check by revision (ADR-012, revised in 1.0.1) still guards production.
 - A release whose `release.yml` run did not succeed (it failed in verify without its load test, or was rolled back) is never the
   baseline, so an API change it carried cannot reach production later behind a web-only change.
 - A workflow change (for example to `load-test.yml` or `deploy.yml`) does not trigger the load test by itself; its effect shows on

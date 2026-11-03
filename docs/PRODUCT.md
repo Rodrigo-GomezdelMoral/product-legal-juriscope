@@ -210,6 +210,8 @@ hexadecimal characters of the SHA-256 of the user's Entra object id.
 | `FeedbackGiven` | the user rates an answer | `turn_id`, `value` (`up` or `down`) |
 
 - **K1** pairs `QuestionAsked` and the first `AnswerAccepted` by `turn_id`; turns never accepted are counted apart and shown beside it.
+  *Known limitation (2026-11-03, release 1.0.1):* the workbook's K1 tile uses an inner join, so it shows only accepted turns and
+  not the count of turns never accepted. The tile changes in the next release that touches `infra/`, with its load test.
 - **K2** counts only `AnswerDelivered` with `outcome == "answer"`; a turn is grounded at first draft when `dropped_claims == 0`.
 - Every KPI figure is published with its date, window and number of cases.
 
@@ -233,6 +235,10 @@ The SLOs are internal targets, stricter than the SLAs, so that an SLO miss warns
 **Health model.** *Ask* is the ask route's availability and p95; *History* is the conversation routes and the Cosmos DB dependency;
 *Model* is the Foundry dependency, including `429` responses. A flow is **healthy** while it meets its SLO over the last hour,
 **degraded** when it misses the SLO but most requests still succeed, and **down** when most requests fail.
+*Known limitation (2026-11-03, release 1.0.1):* the workbook still marks *Ask* degraded at a p95 of 6 s, the first SLO, not the
+13 s SLO of ADR-013, so with a measured p95 of about 12 to 13 s *Ask* shows degraded almost always (production, 2026-11-03: p95
+16.9 s on 3 questions). Read the latency tile and the latency alert, which use 13 s. The threshold changes in the next release
+that touches `infra/`, with its load test.
 
 **Availability rests on a shared search service** with one replica and no financially backed SLA. A second replica would cost about
 64.88 € a month against a 25 € production budget, so availability is measured, not inherited (ADR-007).

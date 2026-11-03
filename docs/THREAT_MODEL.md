@@ -25,7 +25,7 @@ release ones in production.
 | Threat | Mitigation | Proof | State |
 |---|---|---|---|
 | **Spoofing** | Easy Auth with Entra ID, code flow, assignment required; the API trusts only `X-MS-CLIENT-PRINCIPAL`, which the platform sets (ADR-006) | `test_api.py::test_401`; live: 401 without a session, and a forged `X-MS-CLIENT-PRINCIPAL` sent from outside is not honoured | test passes; proven live (staging, 2026-11-01): 401 without a session and with an invalid bearer; the forged header got 401 alone and was replaced by Easy Auth beside a valid token |
-| **Tampering** | ruleset `protect-main` with required checks `ci` and `eval`; images deployed by digest; OIDC without secrets; pinned dependencies, actions and base images | ruleset listing; the release log shows the digest staging received; `tests/test_budget.py::test_supply_chain_is_pinned` | test passes; staging runs digest-only revisions (`deploy.yml`); the release log in phase 8 |
+| **Tampering** | ruleset `protect-main` with required checks `ci` and `eval`; images deployed by digest; OIDC without secrets; dependencies pinned with `==` and base images by digest; actions pinned to a major version and updated by Dependabot | ruleset listing; the release log shows the digest staging received; `tests/test_budget.py::test_supply_chain_is_pinned` | test passes; staging runs digest-only revisions (`deploy.yml`); the release log in phase 8 |
 | **Repudiation** | requests and KPI events carry `user_hash` (SHA-256 of the object id, 16 hex) and the trace id | KQL over `requests` and `customEvents` | proven (staging, 2026-11-01): `QuestionAsked` 6, `AnswerDelivered` 6, `AnswerAccepted` 2, `FeedbackGiven` 1, all with `user_hash` and `turn_id` and no text; a 404's `trace_id` is its request's `operation_Id` |
 | **Information disclosure** | Cosmos DB partition key is the user's object id; no question or answer text in telemetry; `store: False` on model calls; local and shared-key auth disabled on Cosmos DB, Storage and Application Insights; Key Vault by RBAC; 90-day TTL | `test_api.py::test_404_other_user`; the telemetry test asserting no question text; Bicep `disableLocalAuth`, `allowSharedKeyAccess: false`, `defaultTtl` | tests pass; deployed to staging: both containers `defaultTtl` 7,776,000, local auth off |
 | **Denial of service and cost** | max replicas (2 staging, 4 production); TPM caps on the shared deployments; `max_tokens` per agent; budgets with alerts at 50, 80 and 100 %; Application Insights daily caps (0.3 and 1 GB); a model 429 answered with 503 and `Retry-After` | Locust stress results in `OPERATIONS.md`; `test_api.py` 429 → 503 | test passes; stress proven (staging, 2026-11-01): 5 to 100 users over 20 minutes, 4,159 asks, 0 failed, at most 2 replicas, CPU saturated from about 70 users, no 429 from any dependency |
@@ -36,6 +36,13 @@ release ones in production.
 
 - **Global Standard inference** may process a question outside the EU (ADR-009).
 - **One search replica** without an SLA sits under SLA-01 (ADR-007).
+- **Search roles at service scope** (2026-11-03): both runtime identities hold Search Index Data Reader on the whole shared search
+  service, so staging's identity can read the production index and other workloads' indexes, and both CI principals hold Search
+  Service Contributor there, which indexers and skillsets need. Planned: Search Index Data Reader scoped to each environment's
+  own index, through an author script, in a later release.
+- **Public workflow logs** printed non-secret identifiers (the sign-in app's client id, the shared endpoints, the registry host,
+  resource GUIDs from `what-if`) until release 1.0.1. Since then they are secrets, which GitHub masks, and `what-if` GUIDs are
+  replaced. Earlier run logs are kept as the DORA evidence.
 - **The client secret** is a long-lived credential. It lives only in Key Vault and in a GitHub environment secret, and
   `OPERATIONS.md` gives the rotation steps (ADR-006).
 - **The static web client is served without a session.** It holds no data: every data route requires the principal and the role.

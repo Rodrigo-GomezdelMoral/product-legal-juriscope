@@ -24,7 +24,8 @@ Since 2026-11-02 the apps run in France Central (ADR-014), whose meters match Sw
 ## Decision
 
 Option 1 in production, `minReplicas: 0` in staging. Staging measures the cold start, which tells whether option 3 could ever be
-acceptable. Measured in phase 7: 30.1 s for the first request after scaling to zero (2026-11-01, one user), and in the load test
+acceptable. Measured in phase 7: 30.1 s for the first request after scaling to zero (2026-11-01, one user, staging then in Spain Central), and 25.5 s for a
+`GET /healthz` on staging in France Central (2026-11-03, one sample); in the load test
 the first three real-model questions waited 25.5 s for a replica (scale-out decision 0.3 s, image pull from 15 s, container started
 at 16.5 s, first request served at 25.5 s) and took 36 to 37 s in all. Option 3 is ruled out, and `load-test.yml` now warms the stable revision before measuring
 SLA-02, as production's warm replica does.

@@ -65,3 +65,6 @@ subscription:
 - **Cost:** the environment is free at rest. France Central's Consumption meters match Sweden Central's at the Retail Prices API's
   precision (vCPU active 0.000022 € a second, idle 0.000003 €, 2026-11-02), below Spain Central's, so production at rest falls
   from about 15.5 to 11.2 € a month and the all-in cost per question to about 0.037 € (`docs/cost.md`, ADR-008).
+- **Zone redundancy:** the environment is not zone redundant. Advisor lists *Enable zone redundancy for the managed environment*
+  (High) since 2026-11-03; it is rejected for the reasons of ADR-011's zone-redundancy row: SLA-01 is 99.5 % and the shared search
+  service, which every answer needs, has one replica.

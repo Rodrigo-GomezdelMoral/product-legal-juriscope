@@ -370,8 +370,8 @@ phase closes and how each will be demonstrated (a test and, from phase 7, a live
   the green "done" text under 4.5:1, `aria-busy` silencing the progress status and a `log` region reading whole articles, missing
   `lang` on answers, the open mobile drawer leaving the thread focusable (`inert`, Escape), a stream ending without an outcome,
   recorder failures leaving conversations behind, the auth header on the command line, a missing `web/dist`, the mid-stream axe
-  pass, a rejected clipboard write, a stale `?run=` after *New chat*, and the empty search result. Left: focus is not returned to
-  the menu button when Escape closes the drawer.
+  pass, a rejected clipboard write, a stale `?run=` after *New chat*, and the empty search result. Focus returning to the menu
+  button on Escape was left open until release 1.0.1.
 
 ## Decisions taken in phase 6
 
@@ -465,7 +465,7 @@ phase closes and how each will be demonstrated (a test and, from phase 7, a live
 - **Latency per step** (spans, partly sampled): *Analyst* 2.5 s, `retrieve` p50 0.83 s (search call 0.6 s, same region), *Counsel*
   (`draft`) p50 5.2 s, p95 7.5 s, `verify` 4 ms. Counsel alone nearly uses the 8 s of SLA-02, so SLA-02 is at risk before the load
   test runs.
-- **Cold start:** the first request after scaling to zero took 30.1 s, the next ones 0.04 to 0.06 s (ADR-008's warm replica).
+- **Cold start:** the first request after scaling to zero took 30.1 s (Spain Central, 2026-11-01; 25.5 s in France Central, 2026-11-03), the next ones 0.04 to 0.06 s (ADR-008's warm replica).
 - **Workbook** `Juriscope KPIs, SLOs and health (stg)`, deployed with the four tags: 10 of 11 queries run. **K4 was broken**:
   `startofweek(timestamp, 1)` labels the *next* Sunday, and a column used in the same `extend` that defines it is rejected
   (BadArgumentError). **Fixed** in `infra/modules/monitor.bicep` (Monday weeks: `startofweek(timestamp - 1d) + 1d`, two
@@ -671,6 +671,26 @@ phase closes and how each will be demonstrated (a test and, from phase 7, a live
   ramp's `users` variable was inlined.
 - **Author's order:** `publish-load-test-measure.sh`; merge once `ci` is green; `deploy.yml` on the merge commit; `ONLY=load
   07-live-runs.sh`; v1.0.0 from the new `origin/main`; approve `production`; `08-production.sh` again.
+
+## Validation fixes, release 1.0.1 (author's decision, 2026-11-03, branch `feature/fixes`)
+
+- **Scope:** ADR-015's paths only (docs, `*.md`, `.github/`, `web/`), so no load test. The validation report's findings fixed here:
+  the retirement date (2027-07-13), the canary check, the dispatch rollback, the SLA-02 evidence from the release digest, public
+  log identifiers, the canary's twelve minutes, Advisor and DORA, the Responsible AI status, the deploy prerequisites, the drawer's
+  focus and label, the BOE link, the pinning wording, the RPO basis, the load test's metrics window and the cold start's region.
+- **Canary:** the `Requests` metric has `revisionName` and `statusCodeCategory` dimensions (read on production, 2026-11-03);
+  `ResponseTime` has none, and Application Insights' `cloud_RoleInstance` is a per-process id. The jq program was run against the
+  live metric of `v1-0-0` (52 requests, 0 with 5xx) and of a revision that does not exist (0 and 0).
+- **Rollback dispatch:** `--ref <tag>` runs that tag's workflow file, so v1.0.0's own workflow can never roll back; the input
+  `tag` lets a v1.0.1-or-later workflow deploy an older tag. `verify` accepts only `vX.Y.Z`.
+- **Log identifiers:** `::add-mask::` cannot hide job-level `env:`, because the first step's header prints it before any step
+  runs (seen in run 41674519800: `actions/checkout`'s header). So `REGISTRY_LOGIN_SERVER`, both Foundry endpoints and
+  `SEARCH_ENDPOINT` became repository secrets and `AUTH_CLIENT_ID` an environment secret, set by the author's `09-secrets.sh`
+  before the pull request; `what-if` output goes through `sed` to replace GUIDs.
+- **Documented, not fixed (need `app/` or `infra/` and a load test):** the availability SLI's in-stream blind spot, the health
+  tile's 6 s, the K1 tile's inner join, per-revision p95, and search roles at service scope.
+- **F-019 as found:** the metrics query had only `--start-time`, so Azure CLI read one hour from it, which did cover the real stage
+  of run 41661582947 (15:50 to 16:00 UTC, window to 16:14); the fix makes the end explicit.
 
 ## Verified names (installed wheels, 2026-10-30)
 

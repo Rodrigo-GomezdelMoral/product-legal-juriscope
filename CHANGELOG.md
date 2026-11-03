@@ -7,6 +7,59 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ## [Unreleased]
 
+## [1.0.1] - 2026-11-03
+
+A patch from the validation of 1.0.0: the release's canary check and its rollback now do what the documents say, public run
+logs stop printing identifiers, and every published figure matches its source. Only documentation, workflows and the web client
+change, so no load test is required (ADR-015); the image is rebuilt from the same `app/` code.
+
+### Fixed
+
+- The canary check could not see the canary: it read Application Insights requests by `cloud_RoleInstance`, a per-process id,
+  so it always counted 0 requests and passed. `release.yml` now reads the new revision's requests and 5xx from the Container
+  Apps `Requests` metric filtered on its revision name, prints both, says when the canary got no request, and rolls back when 5xx
+  exceed 1 % (ADR-012, revised).
+- A rollback by `workflow_dispatch` reused the revision suffix of a revision that already exists. A dispatch now gets the suffix
+  `v<major>-<minor>-<patch>-r<run number>` and takes the tag to deploy as the input `tag`, so it runs this workflow, not the old
+  tag's: `gh workflow run release.yml --ref <latest tag> -f tag=<previous tag>`.
+- The model retirement date: `gpt-5-mini` 2025-08-07 retires on 2027-07-13 (Models API and Learn, read 2026-11-03), not
+  2027-02-09; the replacement plan moves to about March and April 2027 (ADR-010, `docs/RESPONSIBLE_AI.md`).
+- The mobile drawer: Escape closes it from the menu button too and returns focus to that button, which is now labelled "Menu".
+- The BOE reuse notice under each answer links to www.boe.es, as `data/README.md` states.
+- The load test's replica and CPU maxima end three minutes after the real-model stage, with a fresh sign-in, instead of one
+  hour after the start by Azure CLI's default.
+
+### Security
+
+- Public run logs printed the sign-in apps' client ids, the shared endpoints, the registry host and resource GUIDs from
+  `what-if`. These values are now GitHub secrets, which logs mask, and `what-if` output replaces GUIDs. Earlier logs are kept as
+  the DORA evidence.
+- Dependabot ignores base-image versions beyond the pinned lines (Python 3.12, Node 24); updates within them still arrive.
+
+### Changed
+
+- The SLA-02 evidence is the load test on the release commit and its digest, the one in production: run 41661582947, exact p95
+  12,784 ms on 96 real-model asks, 0 failed (2026-11-03). The earlier run 41619345584 on the image of `298ea6a` (p95 12.0 s on 45
+  asks) stays in `docs/OPERATIONS.md` as history.
+- `docs/OPERATIONS.md`: the fast rollback by revision and the planned rollback with their limits; the canary's twelve minutes;
+  the RPO basis and the restore caveats; production DORA (1 release, 8 minutes from tag to production, change failure rate
+  0 of 1) and staging DORA to 2026-11-03; Advisor after the release; the staging telemetry cap found at 2.0 GB; the sign-in
+  secrets' expiry dates.
+- `docs/RESPONSIBLE_AI.md`: status as of this release, where the app runs (France Central) and where data stays (Sweden Central),
+  and the sign-off line. ADR-008 names the region and date of each cold start; ADR-014 records the rejected zone redundancy of the
+  environment; the threat model states how actions are pinned and two residual risks; the README names every secret and variable.
+
+### Known limitations (planned for the next release with a load test)
+
+- Availability counts 5xx only, so a question that fails inside a started stream counts as available: 31 of 11,304 ask requests
+  (0.27 %) in staging over 30 days, all under the stress ramps; 0 of 3 in production (2026-11-03). Planned: `success == false` in
+  the tile and the alert, and a console line for the in-stream exception.
+- The health model marks *Ask* degraded at a p95 of 6 s instead of the 13 s SLO, so it shows degraded almost always.
+- The K1 tile shows accepted turns only, not the turns never accepted beside them.
+- The canary measures requests and 5xx per revision, not its p95, until the app sets `service.instance.id` from the replica name.
+- Both runtime identities read every index of the shared search service (Search Index Data Reader at service scope). Planned: the
+  role on each environment's own index, through an author script.
+
 ## [1.0.0] - 2026-11-03
 
 The first release: a criminal-law firm's lawyers ask a question about the Spanish Criminal Code and get an answer in which every
@@ -62,5 +115,6 @@ created by this release after the author's approval.
   The released commit carries its own `load-test` status, the exact p95 of about 90 real-model asks, which `release.yml` checks.
 - Restore drill: 12 min 17 s from the decision to readable data, against a 4 h RTO.
 
-[Unreleased]: https://github.com/Rodrigo-GomezdelMoral/product-legal-juriscope/compare/v1.0.0...HEAD
+[Unreleased]: https://github.com/Rodrigo-GomezdelMoral/product-legal-juriscope/compare/v1.0.1...HEAD
+[1.0.1]: https://github.com/Rodrigo-GomezdelMoral/product-legal-juriscope/compare/v1.0.0...v1.0.1
 [1.0.0]: https://github.com/Rodrigo-GomezdelMoral/product-legal-juriscope/releases/tag/v1.0.0

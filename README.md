@@ -6,7 +6,8 @@ Built by **Rodrigo Martín Gómez del Moral Herranz**
 
 Cited answers on the Spanish Criminal Code, with the full article and the version in force. A criminal-law firm's lawyers spend
 about 80 minutes on each research question, and the costly mistake is citing a wording that was not in force on the date of the
-facts. Juriscope answers in about 10 seconds (p95 12.0 s in staging on 2026-11-03), every claim cites the article it rests on, and
+facts. Juriscope answers in about 9 seconds (median 8.6 s, p95 12.8 s in staging on the released image, 2026-11-03), every claim
+cites the article it rests on, and
 it refuses when the Code does not support an answer.
 
 **Try it:** [the published demo](https://rodrigo-gomezdelmoral.github.io/product-legal-juriscope/) replays five runs recorded from
@@ -68,8 +69,8 @@ answer language 0.988 on 82 cases, S5).
 
 | SLA | Committed | Measured |
 |---|---|---|
-| SLA-01 availability | ≥ 99.5 % a month | production starts with v1.0.0; measured by the workbook from then on |
-| SLA-02 latency | 95 % of answers under 15 s, progress within 0.1 s | p95 12.0 s on 45 real-model answers, 0 failed (`load-test.yml`, 2026-11-03); progress in 10 to 27 ms (browser, 2026-11-01) |
+| SLA-01 availability | ≥ 99.5 % a month | production since v1.0.0 (2026-11-03); measured by the workbook, which does not yet count a question that fails after its stream has started (known limitation, [OPERATIONS.md](docs/OPERATIONS.md#alerts)) |
+| SLA-02 latency | 95 % of answers under 15 s, progress within 0.1 s | exact p95 12.8 s (12,784 ms) on 96 real-model answers, 0 failed, on the image in production (`load-test.yml` run 41661582947, 2026-11-03); progress in 10 to 27 ms (browser, 2026-11-01) |
 
 ## KPIs
 
@@ -97,7 +98,7 @@ Staging figures prove that the events arrive (KQL, 2026-11-01: `QuestionAsked` 6
 | **Stack** | Python 3.12, FastAPI, server-sent events; React 19 and TypeScript on the common chat interface; Bicep; Locust |
 | **Environments and delivery** | local with the Cosmos DB emulator; staging and production in Azure. One image per merge, deployed to staging by digest; a GitHub Release promotes the same digest to production with a 10 % canary and the author's approval; GitHub Actions with OIDC, no stored Azure secrets |
 | **Security** | Entra ID sign-in through Easy Auth with an app role, managed identities, local auth off on every data service, the only secret in Key Vault, no question text in telemetry, CodeQL, Dependabot and secret scanning |
-| **SLA** | 99.5 % availability (production from v1.0.0); 95 % of answers under 15 s, measured p95 12.0 s |
+| **SLA** | 99.5 % availability (production from v1.0.0); 95 % of answers under 15 s, measured p95 12.8 s on the released image |
 | **Demo** | [rodrigo-gomezdelmoral.github.io/product-legal-juriscope](https://rodrigo-gomezdelmoral.github.io/product-legal-juriscope/) |
 
 ## Architecture
@@ -143,29 +144,36 @@ one progress line per step, then one answer or one refusal (ADR-004). History li
 |---|---|---|
 | App | `ca-juriscope-stg`, 0 to 2 replicas | `ca-juriscope-prod`, 1 warm replica (ADR-008), up to 4 |
 | Data | `cosmos-juriscope-stg-swc`, index `jur-articles-stg` | `cosmos-juriscope-prod-swc`, index `jur-articles-prod` |
-| Alerts | declared, disabled | 5xx, availability and p95 |
+| Alerts | declared, disabled | 5xx, availability and p95; availability counts 5xx only, not a failure inside a started stream (known limitation) |
 | Changes by | every merge to `main` (`deploy.yml`) | a GitHub Release (`release.yml`), with approval |
 
 A merge builds one image, deploys it to staging by digest and uploads the digest. A release finds that digest for the tagged commit,
-requires the `load-test` status on it, deploys it as a new revision behind a 10 % canary for ten minutes, checks its 5xx rate and
-p95 in Application Insights, and moves to 100 % or rolls back. Commands in [docs/OPERATIONS.md](docs/OPERATIONS.md).
+requires the `load-test` status on it unless only the web, docs or workflows changed (ADR-015), deploys it as a new revision,
+smoke-tests it on the `canary` label, sends it 10 % of traffic for twelve minutes, reads its requests and 5xx from the Container
+Apps `Requests` metric of that revision, and moves to 100 % or rolls back. The p95 of one revision is not measured yet (known
+limitation). Rollback by revision takes seconds; commands in [docs/OPERATIONS.md](docs/OPERATIONS.md).
 
-**Load test** (`load-test.yml`, 2026-11-03, run 41619345584): Locust 2.47.0 against a staging revision with a model double, then the
-real model on the warm stable revision.
+**Load test** (`load-test.yml`, 2026-11-03, run 41661582947, on the release commit and the digest now in production): Locust 2.47.0
+against a staging revision with a model double, then the real model on the warm stable revision. Percentiles are Locust's,
+rounded to two significant digits, except the real-model p95, which is exact (ADR-017).
 
 | Scenario | Users | Requests/s | p50 | p95 | p99 | Errors | Replicas |
 |---|---|---|---|---|---|---|---|
-| normal, model double | 5 | 0.45 | 1.0 s | 5.3 s | 5.6 s | 0 of 80 | ≤ 2 |
-| peak, model double | 20 | 1.71 | 1.2 s | 7.9 s | 8.2 s | 0 of 206 | ≤ 2 |
-| soak, model double | 5 | 0.45 | 0.96 s | 1.4 s | 1.8 s | 0 of 270 | ≤ 2 |
-| stress, model double | 5 to 100 | 3.14 | 2.7 s | 17 s | 21 s | 17 of 3,761 (0.45 %) | 2 |
-| **real model (SLA-02)** | 3 | 0.15 | 9.3 s | **12 s** | 16 s | 0 of 45 | ≤ 2 |
+| normal, model double | 5 | 0.42 | 1.0 s | 4.8 s | 4.8 s | 0 of 75 | ≤ 2 |
+| peak, model double | 20 | 1.61 | 1.4 s | 7.2 s | 7.4 s | 0 of 193 | ≤ 2 |
+| soak, model double | 5 | 0.45 | 0.99 s | 1.4 s | 1.8 s | 0 of 270 | ≤ 2 |
+| stress, model double | 5 to 100 | 3.26 | 2.7 s | 13 s | 20 s | 11 of 3,908 (0.28 %) | 2 |
+| **real model (SLA-02)** | 3 | 0.16 | 8.6 s | **12.8 s** | 22 s | 0 of 96 | ≤ 2 |
+
+At most 2 replicas, 0.51 vCPU and 0.52 GiB over the run. The earlier pass of 2026-11-03 (run 41619345584, image of `298ea6a`, the
+same app code: p95 12.0 s on 45 asks) and the failed runs are in [OPERATIONS.md](docs/OPERATIONS.md#load-tests).
 
 **SLOs** (production from v1.0.0): availability ≥ 99.7 %, p95 < 13 s, 5xx < 1 %, ≤ 0.05 € per question all-in; RTO 4 h (drill:
 12 min 17 s) and RPO 15 min.
 
-**DORA, staging, 2026-11-01 to 2026-11-03:** 9 `deploy.yml` runs with a result, 7 successful; lead time 5 to 8 minutes from merge to
-staging; change failure rate 2 of 9; time to restore 34 and 17 minutes. Production starts with v1.0.0.
+**DORA, 2026-11-01 to 2026-11-03:** staging: 11 `deploy.yml` runs with a result, 9 successful; lead time 5 to 8 minutes from merge
+to staging; change failure rate 2 of 11; time to restore 34 and 17 minutes. Production: 1 release (v1.0.0), 8 minutes from tag to
+production and 2 h 46 min from merge, the load test included; change failure rate 0 of 1.
 
 ## Cost
 
@@ -194,7 +202,7 @@ Deployment runs only through GitHub Actions. With the prerequisites below, a mer
 production:
 
 ```bash
-gh release create v1.0.0 --title v1.0.0 --notes-file <the CHANGELOG section>
+gh release create vX.Y.Z --title vX.Y.Z --notes-file <the CHANGELOG section>
 ```
 
 **Prerequisites:** an Azure subscription with the shared base (Foundry project with `gpt-5-mini` and `text-embedding-3-small`, AI
@@ -212,9 +220,14 @@ trusts the `production` environment. Both use the repository's immutable OIDC su
 
 ### GitHub secrets and variables
 
-Secrets: `AZURE_CLIENT_ID` (per environment), `AZURE_TENANT_ID`, `AZURE_SUBSCRIPTION_ID`, `ALERT_EMAIL_ADDRESS`, and
-`AUTH_CLIENT_SECRET` per environment. Variables: the shared base's endpoints and deployments, `AUTH_CLIENT_ID` per environment,
-`DEPLOY_ENABLED` and `EVAL_SEARCH_INDEX`.
+Secrets, so that public run logs never print them:
+- repository: `AZURE_TENANT_ID`, `AZURE_SUBSCRIPTION_ID`, `EVAL_CLIENT_ID` (the evaluation identity of pull requests),
+  `ALERT_EMAIL_ADDRESS`, `REGISTRY_LOGIN_SERVER`, `FOUNDRY_PROJECT_ENDPOINT`, `FOUNDRY_ACCOUNT_ENDPOINT` and `SEARCH_ENDPOINT`;
+- per environment (`staging`, `production`): `AZURE_CLIENT_ID`, `AUTH_CLIENT_ID` and `AUTH_CLIENT_SECRET`. The sign-in apps' client
+  secrets expire in November 2027; [docs/OPERATIONS.md](docs/OPERATIONS.md) gives the dates and the rotation steps.
+
+Variables: `CHAT_MODEL`, `EMBEDDING_MODEL`, `EVAL_SEARCH_INDEX`, `DEPLOY_ENABLED`, and `SHARED_RESOURCE_GROUP`, which the bootstrap
+sets and no workflow reads.
 
 ### Identities
 
