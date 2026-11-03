@@ -591,7 +591,8 @@ th {
   font-weight: 600;
 }
 
-.card a {
+.card a,
+.notice a {
   color: var(--accent-strong);
 }
 
