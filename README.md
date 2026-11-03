@@ -230,7 +230,7 @@ boundaries and the RBAC Administrator condition.
 - [docs/THREAT_MODEL.md](docs/THREAT_MODEL.md), [docs/RESPONSIBLE_AI.md](docs/RESPONSIBLE_AI.md),
   [docs/evaluation.md](docs/evaluation.md), [docs/architecture.md](docs/architecture.md), [docs/cost.md](docs/cost.md).
 - [CHANGELOG.md](CHANGELOG.md) and the [releases](https://github.com/Rodrigo-GomezdelMoral/product-legal-juriscope/releases).
-- [ADRs](docs/adr/): 001 to 016.
+- [ADRs](docs/adr/): 001 to 017.
 
 ## Author
 

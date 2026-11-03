@@ -89,7 +89,7 @@ jobs:
           client-id: ${{ secrets.AZURE_CLIENT_ID }}
           tenant-id: ${{ secrets.AZURE_TENANT_ID }}
           subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
-      - name: Five minutes at three users on the real model, through the stable revision once it is warm (SLA-02)
+      - name: Ten minutes at three users on the real model, through the stable revision once it is warm (SLA-02)
         run: |
           LOAD_TOKEN="$(az account get-access-token --resource "api://$AUTH_CLIENT_ID" --query accessToken -o tsv)"
           echo "::add-mask::$LOAD_TOKEN"
@@ -104,10 +104,11 @@ jobs:
       - name: Check SLA-02 and the error rates, and set the load-test status on the tested commit
         run: |
           row() { awk -F, -v n="$2" '$2 == n { print $3, $4, $17 }' "results/$1_stats.csv"; }
-          read -r real_n real_failed real_p95 <<< "$(row real ask)"
-          summary="| $(date -u +%F) | real model: $real_n asks, p95 $real_p95 ms, $real_failed failed |"
+          read -r real_n real_failed _ <<< "$(row real ask)"
+          read -r asks real_p95 <<< "$(sort -n results/real_ask_ms.csv | awk '{ t[NR] = $1 } END { print NR, t[int((95 * NR + 99) / 100)] + 0 }')"
+          summary="| $(date -u +%F) | real model: $asks asks, exact p95 $real_p95 ms (nearest rank), $real_failed failed |"
           state=success
-          [ "$real_n" -gt 0 ] && [ "$real_p95" -lt 15000 ] && [ "$real_failed" -le $(( real_n / 100 )) ] || state=failure
+          [ "$asks" -gt 0 ] && [ "$asks" -eq "$real_n" ] && [ "$real_p95" -lt 15000 ] && [ "$real_failed" -le $(( real_n / 100 )) ] || state=failure
           for scenario in normal peak soak; do
             read -r n failed p95 <<< "$(row $scenario ask)"
             summary="$summary $scenario: $n asks, p95 $p95 ms, $failed failed |"
@@ -115,7 +116,7 @@ jobs:
           done
           echo "$summary" | tee -a "$GITHUB_STEP_SUMMARY"
           gh api "repos/$GITHUB_REPOSITORY/statuses/$GITHUB_SHA" -f state="$state" -f context=load-test \
-            -f description="p95 $real_p95 ms (SLA 15000) for $TESTED" --silent
+            -f description="p95 $real_p95 ms of $asks asks (SLA 15000) for $TESTED" --silent
           [ "$state" = success ]
       - name: Remove the loadtest revision
         if: always() && env.LOAD != ''

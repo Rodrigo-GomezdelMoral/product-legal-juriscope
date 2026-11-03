@@ -9,7 +9,7 @@ from locust import HttpUser, LoadTestShape, between, task
 SCENARIO, TOKEN = os.environ.get("LOAD_SCENARIO", "normal"), os.environ.get("LOAD_TOKEN", "")
 GOLDEN = Path(__file__).parent.parent / "eval" / "datasets" / "golden.jsonl"
 QUESTIONS = [json.loads(line)["question"] for line in GOLDEN.read_text("utf-8").splitlines() if line.strip()]
-SHAPES = {"normal": (5, 180), "peak": (20, 120), "soak": (5, 600), "real": (3, 300)}
+SHAPES = {"normal": (5, 180), "peak": (20, 120), "soak": (5, 600), "real": (3, 600)}
 STRESS_STEP, STRESS_ERRORS, STRESS_SECONDS = 5, 0.05, 1200
 
 
@@ -23,6 +23,9 @@ class Lawyer(HttpUser):
     def ask(self) -> None:
         body, path = {"question": random.choice(QUESTIONS)}, "/api/conversations/new/messages"
         with self.client.post(path, json=body, name="ask", catch_response=True) as response:
+            if SCENARIO == "real":
+                with Path("results/real_ask_ms.csv").open("a", encoding="utf-8") as times:
+                    times.write(f"{response.request_meta['response_time']:.0f}\n")
             lines = [line.removeprefix("data:") for line in response.text.splitlines() if line.startswith("data:")]
             outcome = next((json.loads(line) for line in lines if '"turn"' in line), None)
             if response.status_code != 200 or outcome is None:
@@ -37,7 +40,6 @@ class Shape(LoadTestShape):
         if SCENARIO == "stress":
             total = self.runner.stats.total if self.runner else None
             failing = total is not None and total.num_requests > 50 and total.fail_ratio > STRESS_ERRORS
-            users = STRESS_STEP * (1 + int(elapsed // 60))
-            return None if failing or elapsed > STRESS_SECONDS else (users, STRESS_STEP)
+            return None if failing or elapsed > STRESS_SECONDS else (STRESS_STEP * int(elapsed // 60 + 1), STRESS_STEP)
         users, seconds = SHAPES[SCENARIO]
         return (users, users) if elapsed < seconds else None
