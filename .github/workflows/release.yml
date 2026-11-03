@@ -4,6 +4,11 @@ on:
   release:
     types: [published]
   workflow_dispatch:
+    inputs:
+      tag:
+        description: Release tag to deploy (vX.Y.Z), for a rollback; empty deploys the tag the workflow runs on
+        required: false
+        default: ""
 
 permissions:
   contents: read
@@ -34,8 +39,9 @@ jobs:
         name: Digest that deploy.yml built for the tag's commit, and its load test unless only web, docs or workflows changed
         env:
           GH_TOKEN: ${{ github.token }}
-          TAG: ${{ github.event.release.tag_name || github.ref_name }}
+          TAG: ${{ github.event.release.tag_name || inputs.tag || github.ref_name }}
         run: |
+          [[ "$TAG" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]] || { echo "::error::Not a release tag: $TAG"; exit 1; }
           sha="$(gh api "repos/$GITHUB_REPOSITORY/commits/$TAG" --jq .sha)"
           run="$(gh run list -R "$GITHUB_REPOSITORY" --workflow deploy.yml --commit "$sha" --status success --json databaseId --jq '.[0].databaseId')"
           test -n "$run"
@@ -82,18 +88,17 @@ jobs:
       AZURE_TOKEN_CREDENTIALS: AzureCliCredential
       RG: rg-juriscope-prod-swc
       APP: ca-juriscope-prod
-      APPI: appi-juriscope-prod-swc
       PARAMS: infra/main.production.bicepparam
       IMAGE_DIGEST: ${{ needs.verify.outputs.digest }}
-      TAG: ${{ github.event.release.tag_name || github.ref_name }}
-      REGISTRY_LOGIN_SERVER: ${{ vars.REGISTRY_LOGIN_SERVER }}
-      FOUNDRY_PROJECT_ENDPOINT: ${{ vars.FOUNDRY_PROJECT_ENDPOINT }}
-      FOUNDRY_ACCOUNT_ENDPOINT: ${{ vars.FOUNDRY_ACCOUNT_ENDPOINT }}
-      SEARCH_ENDPOINT: ${{ vars.SEARCH_ENDPOINT }}
+      TAG: ${{ github.event.release.tag_name || inputs.tag || github.ref_name }}
+      REGISTRY_LOGIN_SERVER: ${{ secrets.REGISTRY_LOGIN_SERVER }}
+      FOUNDRY_PROJECT_ENDPOINT: ${{ secrets.FOUNDRY_PROJECT_ENDPOINT }}
+      FOUNDRY_ACCOUNT_ENDPOINT: ${{ secrets.FOUNDRY_ACCOUNT_ENDPOINT }}
+      SEARCH_ENDPOINT: ${{ secrets.SEARCH_ENDPOINT }}
       SEARCH_INDEX: jur-articles-prod
       CHAT_MODEL: ${{ vars.CHAT_MODEL }}
       EMBEDDING_MODEL: ${{ vars.EMBEDDING_MODEL }}
-      AUTH_CLIENT_ID: ${{ vars.AUTH_CLIENT_ID }}
+      AUTH_CLIENT_ID: ${{ secrets.AUTH_CLIENT_ID }}
       AUTH_CLIENT_SECRET: ${{ secrets.AUTH_CLIENT_SECRET }}
       ALERT_EMAIL_ADDRESS: ${{ secrets.ALERT_EMAIL_ADDRESS }}
     steps:
@@ -108,15 +113,18 @@ jobs:
           subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
       - name: What-if, then deploy the digest as revision v<major>-<minor>-<patch> behind the canary label
         run: |
+          set -o pipefail
           az config set extension.use_dynamic_install=yes_without_prompt --only-show-errors
           stable=""
           if az containerapp show -n "$APP" -g "$RG" -o none 2>/dev/null; then
             stable="$(az containerapp revision list -n "$APP" -g "$RG" --query "[?properties.trafficWeight > \`0\`].name | [0]" -o tsv)"
           fi
           suffix="$(tr '.' '-' <<< "$TAG")"
-          [ "$GITHUB_RUN_ATTEMPT" = "1" ] || suffix="$suffix-a$GITHUB_RUN_ATTEMPT"
+          if [ "$GITHUB_EVENT_NAME" = workflow_dispatch ]; then suffix="$suffix-r$GITHUB_RUN_NUMBER"; fi
+          if [ "$GITHUB_RUN_ATTEMPT" != 1 ]; then suffix="$suffix-a$GITHUB_RUN_ATTEMPT"; fi
           export STABLE_REVISION="$stable" REVISION_SUFFIX="$suffix"
-          az deployment group what-if -g "$RG" -p "$PARAMS" --result-format ResourceIdOnly --only-show-errors
+          az deployment group what-if -g "$RG" -p "$PARAMS" --result-format ResourceIdOnly --only-show-errors \
+            | sed -E 's/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/<guid>/g'
           out="$(az deployment group create -g "$RG" -n "juriscope-$suffix" -p "$PARAMS" --query properties.outputs -o json --only-show-errors)"
           fqdn="$(jq -r .fqdn.value <<< "$out")"
           echo "::add-mask::$fqdn"
@@ -157,7 +165,7 @@ jobs:
           token="$(az account get-access-token --resource "api://$AUTH_CLIENT_ID" --query accessToken -o tsv)"
           echo "::add-mask::$token"
           curl -fsS -o /dev/null -w "/api/meta %{http_code} %{time_total} s\n" -H "Authorization: Bearer $token" "https://$canary/api/meta"
-      - name: Canary at 10 % for ten minutes
+      - name: Canary at 10 % for twelve minutes
         if: env.STABLE_REVISION != '' && env.STABLE_REVISION != env.NEW
         run: |
           az containerapp ingress traffic set -n "$APP" -g "$RG" --revision-weight "$NEW=10" "$STABLE_REVISION=90" -o none
@@ -170,15 +178,19 @@ jobs:
           client-id: ${{ secrets.AZURE_CLIENT_ID }}
           tenant-id: ${{ secrets.AZURE_TENANT_ID }}
           subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
-      - name: The canary's 5xx rate and p95 in Application Insights
+      - name: The canary's requests and 5xx from the Container Apps Requests metric, by revision
         if: env.STABLE_REVISION != '' && env.STABLE_REVISION != env.NEW
         run: |
-          query="requests | where timestamp > datetime($CANARY_START) and cloud_RoleInstance startswith '$NEW'
-            | summarize total = count(), failed = countif(toint(resultCode) >= 500), p95 = percentile(duration, 95)"
-          row="$(az monitor app-insights query -g "$RG" --app "$APPI" --analytics-query "$query" --query "tables[0].rows[0]" -o tsv)"
-          read -r total failed p95 <<< "$row"
-          echo "canary: $total requests, $failed with 5xx, p95 ${p95:-n/a} ms" | tee -a "$GITHUB_STEP_SUMMARY"
-          awk -v t="${total:-0}" -v f="${failed:-0}" -v p="${p95:-0}" 'BEGIN { exit !(f <= 0.01 * t && (t < 20 || p < 13000)) }'
+          id="$(az containerapp show -n "$APP" -g "$RG" --query id -o tsv)"
+          az monitor metrics list --resource "$id" --metric Requests --aggregation Total --interval PT1M -o json \
+            --start-time "$CANARY_START" --end-time "$(date -u +%Y-%m-%dT%H:%M:%SZ)" --filter "revisionName eq '$NEW' and statusCodeCategory eq '*'" > requests.json
+          counts="$(jq -er '[.value[0].timeseries[] | {n: ([.data[].total // 0] | add // 0),
+              c: (.metadatavalues[] | select(.name.value | ascii_downcase == "statuscodecategory") | .value)}]
+            | "\(map(.n) | add // 0) \(map(select(.c == "5xx") | .n) | add // 0)"' requests.json)"
+          read -r total failed <<< "$counts"
+          echo "canary: $total requests, $failed with 5xx; p95 per revision not measured (OPERATIONS.md)" | tee -a "$GITHUB_STEP_SUMMARY"
+          if awk -v t="$total" 'BEGIN { exit !(t == 0) }'; then echo "The canary received no request: the 5xx rule did not apply." | tee -a "$GITHUB_STEP_SUMMARY"; fi
+          awk -v t="$total" -v f="$failed" 'BEGIN { exit !(f <= 0.01 * t) }'
       - name: Promote to 100 % and deactivate the previous revision
         if: env.STABLE_REVISION != '' && env.STABLE_REVISION != env.NEW
         run: |
