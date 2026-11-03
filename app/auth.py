@@ -38,4 +38,4 @@ def signed_in(principal: Annotated[str | None, Header(alias="X-MS-CLIENT-PRINCIP
     if ROLE not in {claim.val for claim in parsed.claims if claim.typ in {parsed.role_typ, ROLES}}:
         raise HTTPException(403, "Your account is not assigned to Juriscope.")
     identify(user_id)
-    return User(id=user_id, name=claims.get(parsed.name_typ) or claims.get("name", ""))
+    return User(id=user_id, name=claims.get("name") or claims.get(parsed.name_typ, ""))

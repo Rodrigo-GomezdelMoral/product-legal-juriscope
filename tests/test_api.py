@@ -32,9 +32,9 @@ ASKED = {"question": QUESTION}
 
 
 def principal(user: str, *roles: str, name: str = "Ana Ruiz", entra: bool = False) -> dict[str, str]:
-    claims = [("oid" if entra else OBJECT_ID, user), ("name", name), *(("roles", role) for role in roles)]
-    role_typ = "http://schemas.microsoft.com/ws/2008/06/identity/claims/role" if entra else "roles"
     name_typ = "http://schemas.xmlsoap.org/ws/2005/05/identity/claims/name" if entra else "name"
+    claims = [("oid" if entra else OBJECT_ID, user), (name_typ, "ana"), ("name", name), *(("roles", r) for r in roles)]
+    role_typ = "http://schemas.microsoft.com/ws/2008/06/identity/claims/role" if entra else "roles"
     body = {"claims": [{"typ": t, "val": v} for t, v in claims], "name_typ": name_typ, "role_typ": role_typ}
     return {"X-MS-CLIENT-PRINCIPAL": base64.b64encode(json.dumps(body).encode()).decode()}
 
