@@ -46,14 +46,12 @@ async def test_gate_scores_each_metric(corpus: Corpus) -> None:
     homicide, murder_2014 = corpus.cite("a138"), corpus.cite("a139", date(2014, 5, 15))
     assert homicide and murder_2014
     then = Case(question="q5", block="a139", norm="BOE-A-1995-25444", in_force=date(1996, 5, 24))
+    leaked = observed(answer(homicide, text="La pena es de prisión. Zebra 7731. [1]"), [])
     pairs = [
         (Case(question="q1", gold=["a138"]), observed(answer(homicide), ["a138", "a142"])),
         (Case(question="q2", gold=["a142"]), observed(answer(homicide), ["a1", "a2", "a3", "a4", "a5", "a142"])),
         (Case(question="q3", answerable=False), observed(Refusal(reason="out_of_scope"), [])),
-        (
-            Case(question="q4", canary="ZEBRA-7731"),
-            observed(answer(homicide, text="La pena es de prisión. Zebra 7731. [1]"), []),
-        ),
+        (Case(question="q4", canary="ZEBRA-7731"), leaked),
         (then, observed(answer(murder_2014), ["a139"])),
         (then.model_copy(update={"question": "q6"}), observed(answer(corpus.cite("a139") or murder_2014), ["a139"])),
         (Case(question="q7", language="en"), observed(answer(homicide, text="The penalty is prison. [1]"), ["a138"])),

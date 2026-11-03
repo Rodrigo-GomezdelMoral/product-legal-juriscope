@@ -54,7 +54,7 @@ Staging figures were measured in phase 7 (2026-11-01, times in UTC); figures mar
 |---|---|---|---|
 | `alert-juriscope-prod-5xx` | metric, app | more than 5 server errors in 15 minutes | the author: the workbook's health model, then roll back or scale |
 | `alert-juriscope-prod-availability` | log, every 15 min | availability of `/api` below 99.7 % over the last hour, with at least 20 requests | the author: triage by flow (*Ask*, *History*, *Model*) |
-| `alert-juriscope-prod-latency` | log, every 15 min | p95 of the ask route at or above 13 s (the latency SLO) over the last hour, with at least 5 questions | the author: *Model* flow and the shared deployment's TPM |
+| `alert-juriscope-prod-latency` | log, every 15 min | p95 of the ask route at or above 13 s (the latency SLO) over the last hour, with at least 5 questions | the author: *Model* flow, the shared deployment's TPM and the `AnalystRetried` count (ADR-016) |
 | `budget-juriscope-<env>` | budget, both environments | 50, 80 and 100 % of 10 € (staging) or 25 € (production) | the author: Cost Management by tag; staging to zero, or production `minReplicas 0` |
 
 Each alert goes to its environment's action group `ag-juriscope-<env>-swc`, which e-mails `ALERT_EMAIL_ADDRESS`. Staging declares the
@@ -112,6 +112,7 @@ restated in ADR-013) and no scenario fails more than 1 %. Replicas, CPU and memo
 | 2026-11-01 | soak, model double | 5 | 0.44 | 0.97 s | 1.4 s | 1.7 s | 0 of 267 | 2 |
 | 2026-11-01 | stress, model double | 5 to 100 | 3.47 | 2.3 s | 10 s | 16 s | 0 of 4,159 | 2 (the maximum) |
 | 2026-11-01 | real model, cold stable revision | 3 | 0.13 | 9.7 s | 37 s | 37 s | 0 of 14 | 0 → 1 |
+| 2026-11-03 | real model, warm stable revision | 3 | 0.14 | 9.5 s | 17 s | 30 s | 0 of 43 | 2 |
 
 Rates and percentiles are for the ask route at the client (Locust 2.47.0, run 41331036489, digest of `c074a7e`). **The run failed
 the SLA-02 gate** as it stood then (p95 < 8 s): the stable revision had idled at zero replicas through the 35 minutes of the
@@ -120,6 +121,11 @@ model-double scenarios, and the first three real asks waited 25.5 s for a replic
 probes timed out in the last two minutes, without a failed ask. Working set peaked at 0.53 GiB, so the replica stays at 0.5 vCPU
 and 1 GiB (ADR-008). No dependency returned 429. **The gate is rerun with the warm-up and the longer real-model scenario after the
 phase 7 merge, before any release.**
+
+The rerun of 2026-11-03 (run 41603022081) **failed the gate at p95 17 s**, with no failed ask. The two slowest asks (29.7 and 21.7 s)
+spent 24.9 and 15.5 s in *Analyst*'s model call, against a median of 3.4 s, on warm replicas. *Analyst* now has a 5-second deadline
+and one retry (ADR-016). Count the retries with `customEvents | where name == "AnalystRetried"`. The gate runs again after that change
+is deployed to staging.
 
 ## DORA
 

@@ -103,10 +103,7 @@ def test_142_bis_lives_in_block_a1_2(corpus: Corpus) -> None:
 def test_references(corpus: Corpus) -> None:
     citation = corpus.cite("a138")
     assert citation is not None
-    assert [(r.title, r.url) for r in citation.see_also] == [
-        ("Artículo 140", OFFICIAL + "a140"),
-        ("Artículo 550", OFFICIAL + "a550"),
-    ]
+    assert [(r.title, r.url) for r in citation.see_also] == [(f"Artículo {n}", f"{OFFICIAL}a{n}") for n in (140, 550)]
     assert corpus.references("a1-2", date.today()) == ["a152", "a142"]
     assert corpus.references("a67", date.today()) == ["a66"]
     assert corpus.references("a138", date(2000, 1, 1)) == []
