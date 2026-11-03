@@ -49,8 +49,9 @@ from the first release.
 
 - **Full indexing:** about 0.01 € of embeddings per environment; the indexer's PDF text extraction is free (no Layout skill, ADR-003).
   It is repeated only when the PDF changes.
-- **Full load test:** about 2–4 € of semantic queries, plus about 0.2 € of tokens for the 5-minute real-model scenario (about 35
-  answers at 0.0051 €). The run of 2026-11-01 (about 4,700 asks) also cost about 0.40 € of Cosmos DB request units.
+- **Full load test:** about 2–4 € of semantic queries, plus about 0.45 € of tokens for the 10-minute real-model scenario (about 90
+  answers at 0.0051 €; 0.2 € more than the 5-minute scenario before ADR-017, with about 0.1 € more of semantic queries). The run
+  of 2026-11-01 (about 4,700 asks) also cost about 0.40 € of Cosmos DB request units.
 
 ## Measured in staging (Cost Management, read 2026-11-02)
 

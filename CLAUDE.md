@@ -538,7 +538,8 @@ phase closes and how each will be demonstrated (a test and, from phase 7, a live
   The deploy after the phase 7 merge creates the new app; the browser sign-in (`ONLY=browser`) moves to after it.
 - **SLA-02, author's decision of 2026-11-02 (ADR-013):** 95 % under 15 s to the final event plus *Analysing the question* within
   0.1 s (browser); latency SLO p95 < 13 s (the old 2 s gap). `load-test.yml` waits for `/healthz` 200 on the stable revision, then
-  runs the real-model scenario 5 minutes (`SHAPES["real"] = (3, 300)`, about 35 asks); its gate is `-lt 15000`. Moved with it: the
+  runs the real-model scenario 5 minutes (`SHAPES["real"] = (3, 300)`, about 35 asks); its gate is `-lt 15000`
+  (10 minutes and the exact p95 since ADR-017). Moved with it: the
   workbook tile and the latency alert in `monitor.bicep` (13 and 15), `release.yml`'s canary p95 (13,000 ms), `PRODUCT.md`,
   `OPERATIONS.md`, ADR-004, 008 and 010, and the header of `07-live-runs.sh`.
 
@@ -652,6 +653,24 @@ phase closes and how each will be demonstrated (a test and, from phase 7, a live
 - **Author's order:** `08-production.sh`; `publish-release.sh`; merge; `deploy.yml` and `pages.yml` succeed on the merge commit;
   `ONLY=load 07-live-runs.sh` (the `load-test` status on that commit); publish v1.0.0 on that commit; approve; `08-production.sh`
   again.
+
+## Exact p95 (author's decision, 2026-11-03, branch `fix/load-test-measure`)
+
+- **Evidence:** `load-test.yml` run 41637405127 on the phase 8 merge `0550f3f` (the same app code as `298ea6a`) failed SLA-02 at
+  Locust's p95 15,000 ms: 45 real-model asks, median 9.5 s, maximum 19.9 s, 0 failed. `298ea6a` had passed at 12,000 ms. Locust
+  stores response times rounded to two significant digits (`StatsEntry._log_response_time`, verified in locust 2.47.0), so 15,000
+  is about 14.5 to 15.5 s; with 45 asks the nearest-rank p95 is the 3rd slowest. No telemetry: the 0.3 GB staging cap filled at
+  about 10:50 UTC (kept; a known limitation in `OPERATIONS.md`).
+- **Decision (ADR-017):** in the real scenario only, `ask` appends `response.request_meta["response_time"]` (Locust's own
+  measurement, whole ms, failed asks included) to `results/real_ask_ms.csv`; the gate sorts it and takes rank ⌈0.95 n⌉ with `awk`,
+  requires the file's count to equal Locust's ask count, and keeps 15,000 ms and the 1 % failure rule. `SHAPES["real"] = (3, 600)`,
+  about 90 asks; `timeout-minutes: 90` covers the worst case of about 52 minutes. An `events.request` listener was rejected: Locust's
+  `add_listener` is untyped, so mypy strict rejects it as a decorator and as a call, and it costs two more lines than the budget has.
+- **Checked:** the `awk` line against ⌈0.95 n⌉ for n from 1 to 101 and on synthetic samples shaped like both saved CSVs; a short
+  local Locust run against a stub server wrote one line per ask (64, as Locust counted). Python budget 1,400 of 1,400: the stress
+  ramp's `users` variable was inlined.
+- **Author's order:** `publish-load-test-measure.sh`; merge once `ci` is green; `deploy.yml` on the merge commit; `ONLY=load
+  07-live-runs.sh`; v1.0.0 from the new `origin/main`; approve `production`; `08-production.sh` again.
 
 ## Verified names (installed wheels, 2026-10-30)
 

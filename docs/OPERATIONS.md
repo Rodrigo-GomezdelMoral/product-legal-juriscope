@@ -104,9 +104,12 @@ of traffic, and runs Locust 2.47.0 headless against that label:
 | soak | 5 | 10 min |
 | stress | +5 a minute | until errors pass 5 %, at most 20 min |
 
-It then waits for `/healthz` 200 on the stable revision and runs five minutes at three users on the real model through it. Search is
-real in every scenario, so semantic queries bill. Promotion goes ahead only if the real-model p95 of `ask` is under 15 s (SLA-02,
-restated in ADR-013) and no scenario fails more than 1 %. Replicas, CPU and memory maxima come from Azure Monitor.
+It then waits for `/healthz` 200 on the stable revision and runs ten minutes at three users on the real model through it, about
+90 asks (five minutes until ADR-017). Search is real in every scenario, so semantic queries bill. Promotion goes ahead only if the
+real-model p95 of `ask` is under 15,000 ms (SLA-02, restated in ADR-013) and no scenario fails more than 1 %. Since ADR-017 that
+p95 is exact: the nearest rank over every real-model ask's response time in `results/real_ask_ms.csv`, not Locust's percentile,
+which is rounded to two significant digits (15,000 covers about 14.5 to 15.5 s). The job summary and the status description show
+it in milliseconds with the number of asks. Replicas, CPU and memory maxima come from Azure Monitor.
 
 | Date | Scenario | Users | Requests/s | p50 | p95 | p99 | Errors | Replicas |
 |---|---|---|---|---|---|---|---|---|
@@ -121,6 +124,7 @@ restated in ADR-013) and no scenario fails more than 1 %. Replicas, CPU and memo
 | 2026-11-03 | soak, model double | 5 | 0.45 | 0.96 s | 1.4 s | 1.8 s | 0 of 270 | ≤ 2 |
 | 2026-11-03 | stress, model double | 5 to 100 | 3.14 | 2.7 s | 17 s | 21 s | 17 of 3,761 | 2 (the maximum) |
 | 2026-11-03 | **real model, warm, with the *Analyst* deadline** | 3 | 0.15 | 9.3 s | **12 s** | 16 s | 0 of 45 | ≤ 2 |
+| 2026-11-03 | real model, warm, phase 8 merge | 3 | 0.15 | 9.5 s | 15 s | 20 s | 0 of 45 | 2 |
 
 Rates and percentiles are for the ask route at the client (Locust 2.47.0, run 41331036489, digest of `c074a7e`). **The run failed
 the SLA-02 gate** as it stood then (p95 < 8 s): the stable revision had idled at zero replicas through the 35 minutes of the
@@ -136,13 +140,25 @@ and one retry (ADR-016). Count the retries with `customEvents | where name == "A
 is deployed to staging.
 
 **The gate passed on 2026-11-03** (run 41619345584, digest of `298ea6a`, the merge of the *Analyst* deadline): 45 real-model asks,
-p95 12.0 s against 15 s, 0 failed; normal, peak and soak without errors. The last five rows of the table are that run. During the
+p95 12.0 s against 15 s, 0 failed; normal, peak and soak without errors. The five rows before the last are that run. During the
 run the app reached 2 replicas, 0.50 vCPU and 0.55 GiB (maxima over both revisions). The stress ramp reached 100 users; its 17
 failures (0.45 %) were streams that ended without an answer or a refusal under CPU saturation, and the stress scenario has no error
 gate. Staging telemetry stopped arriving at about 10:50 UTC, during the stress ramp, so the real-model window has almost no spans or
 KPI events; that is consistent with the staging daily cap of 0.3 GB, which this run did not confirm. The client-side figures
 above do not depend on it. `release.yml` requires the `load-test` status on the tagged commit, so the gate runs again on the
 phase 8 merge commit before v1.0.0.
+
+The run on the phase 8 merge commit (2026-11-03, run 41637405127, `0550f3f`, the same app code as `298ea6a`) **failed the gate at
+Locust's p95 15,000 ms**: 45 real-model asks, median 9.5 s, maximum 19.9 s, 0 failed; 2 replicas, 0.51 vCPU and 0.53 GiB at
+most. With 45 asks the p95 is the 3rd slowest ask, and Locust's 15,000 is a bucket from about 14.5 to 15.5 s, so this run and the
+12,000 of `298ea6a` are consistent with the same code measured too coarsely on too few asks. ADR-017 makes the gate read the exact p95 and doubles
+the real-model stage to ten minutes. The gate runs again on that change's merge commit before v1.0.0.
+
+**Known limitation: staging telemetry during load tests.** The staging Application Insights daily cap is 0.3 GB, reset at
+00:00 UTC, and is kept. The model-double scenarios of the morning run filled it at about 10:50 UTC on 2026-11-03, so run
+41637405127 has no spans or KPI events. The gate reads client-side times and does not depend on telemetry; explaining a slow
+ask does. Run a load test that may need diagnosis as the first of its UTC day, and check the cap in the portal before reading
+spans.
 
 ## DORA
 

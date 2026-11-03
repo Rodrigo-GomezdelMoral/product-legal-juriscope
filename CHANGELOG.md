@@ -46,10 +46,11 @@ created by this release after the author's approval.
   Insights with a daily cap, the KPI and SLO workbook, alerts, budgets and tags; the search index per environment on the shared
   search service.
 - Delivery: one image per merge, deployed to staging by digest (`deploy.yml`); `load-test.yml` with Locust against a revision on
-  the model double, then the real model on the warm stable revision; `release.yml` promotes the staged digest to production with
-  a 10 % canary, a health check and rollback (ADR-012, ADR-015).
+  the model double, then 10 minutes of the real model on the warm stable revision, gated on the exact p95 of every real-model ask
+  rather than Locust's rounded percentile (ADR-017); `release.yml` promotes the staged digest to production with a 10 % canary, a
+  health check and rollback (ADR-012, ADR-015).
 - Operations: `docs/OPERATIONS.md` (promotion, rollback, urgent patch, alerts, restore drill, incident procedure, load tests,
-  DORA), `docs/THREAT_MODEL.md`, `docs/RESPONSIBLE_AI.md`, `docs/evaluation.md`, `docs/cost.md` and ADR-001 to ADR-016.
+  DORA), `docs/THREAT_MODEL.md`, `docs/RESPONSIBLE_AI.md`, `docs/evaluation.md`, `docs/cost.md` and ADR-001 to ADR-017.
 
 ### Verified in staging
 
@@ -58,6 +59,7 @@ created by this release after the author's approval.
 - Full evaluation suite on `jur-articles-stg` (2026-11-01, 110 cases): recall@5 0.917, citation precision 1.000, version accuracy
   1.000, correct refusal 1.000, false refusal 0.027, canary 0, groundedness 0.994.
 - SLA-02 (2026-11-03, `load-test.yml`): 45 real-model answers, p95 12.0 s against 15 s, 0 failed; progress shown in 10 to 27 ms.
+  The released commit carries its own `load-test` status, the exact p95 of about 90 real-model asks, which `release.yml` checks.
 - Restore drill: 12 min 17 s from the decision to readable data, against a 4 h RTO.
 
 [Unreleased]: https://github.com/Rodrigo-GomezdelMoral/product-legal-juriscope/compare/v1.0.0...HEAD
