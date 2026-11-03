@@ -73,7 +73,7 @@ Insights and the search service, and the image pull) is a few KB per question. A
 
 ## Switching off
 
-- **What bills when stopped:** production's warm replica (about 14.6 €) and its two enabled log alert rules (0.88 €).
+- **What bills when stopped:** production's warm replica (about 10.3 €) and its two enabled log alert rules (0.88 €).
 - **Staging** scales to zero by itself, and its alert rules are disabled.
 - **Production to zero without deleting anything** (prompt 06): `minReplicas: 0` and the alert rules disabled.
 - **No spending limit:** the subscription is pay-as-you-go, so budgets only alert. `OPERATIONS.md` says who reacts and how.

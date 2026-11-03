@@ -35,7 +35,10 @@ Staging figures were measured in phase 7 (2026-11-01, times in UTC); figures mar
 - **First deployment of an environment:** the Key Vault role and the container app are created in one deployment. If the revision
   fails to read `auth-client-secret` while RBAC propagates, rerun the workflow. Staging avoided it with a temporary Key Vault
   Secrets User on the resource group (`07-staging.sh`), removed after the first revision; later revisions resolve the secret with
-  the vault-scoped role alone.
+  the vault-scoped role alone. Production does the same: the author's `08-production.sh` creates the sign-in app, gives the
+  production CI principal `Juriscope.User` (the smoke test calls `/api/meta` with its own token), sets `AUTH_CLIENT_SECRET` and
+  `AUTH_CLIENT_ID` in `production` and adds the temporary role before v1.0.0; run again after the release, it adds the sign-in
+  callback of the new app, removes the temporary role and opens production in the browser.
 - **Rollback:**
   - staging: `gh workflow run deploy.yml --ref main -f digest=<previous digest>`;
   - production: `gh workflow run release.yml --ref <previous tag>`, with approval.
@@ -113,6 +116,11 @@ restated in ADR-013) and no scenario fails more than 1 %. Replicas, CPU and memo
 | 2026-11-01 | stress, model double | 5 to 100 | 3.47 | 2.3 s | 10 s | 16 s | 0 of 4,159 | 2 (the maximum) |
 | 2026-11-01 | real model, cold stable revision | 3 | 0.13 | 9.7 s | 37 s | 37 s | 0 of 14 | 0 → 1 |
 | 2026-11-03 | real model, warm stable revision | 3 | 0.14 | 9.5 s | 17 s | 30 s | 0 of 43 | 2 |
+| 2026-11-03 | normal, model double | 5 | 0.45 | 1.0 s | 5.3 s | 5.6 s | 0 of 80 | ≤ 2 |
+| 2026-11-03 | peak, model double | 20 | 1.71 | 1.2 s | 7.9 s | 8.2 s | 0 of 206 | ≤ 2 |
+| 2026-11-03 | soak, model double | 5 | 0.45 | 0.96 s | 1.4 s | 1.8 s | 0 of 270 | ≤ 2 |
+| 2026-11-03 | stress, model double | 5 to 100 | 3.14 | 2.7 s | 17 s | 21 s | 17 of 3,761 | 2 (the maximum) |
+| 2026-11-03 | **real model, warm, with the *Analyst* deadline** | 3 | 0.15 | 9.3 s | **12 s** | 16 s | 0 of 45 | ≤ 2 |
 
 Rates and percentiles are for the ask route at the client (Locust 2.47.0, run 41331036489, digest of `c074a7e`). **The run failed
 the SLA-02 gate** as it stood then (p95 < 8 s): the stable revision had idled at zero replicas through the 35 minutes of the
@@ -127,6 +135,15 @@ spent 24.9 and 15.5 s in *Analyst*'s model call, against a median of 3.4 s, on w
 and one retry (ADR-016). Count the retries with `customEvents | where name == "AnalystRetried"`. The gate runs again after that change
 is deployed to staging.
 
+**The gate passed on 2026-11-03** (run 41619345584, digest of `298ea6a`, the merge of the *Analyst* deadline): 45 real-model asks,
+p95 12.0 s against 15 s, 0 failed; normal, peak and soak without errors. The last five rows of the table are that run. During the
+run the app reached 2 replicas, 0.50 vCPU and 0.55 GiB (maxima over both revisions). The stress ramp reached 100 users; its 17
+failures (0.45 %) were streams that ended without an answer or a refusal under CPU saturation, and the stress scenario has no error
+gate. Staging telemetry stopped arriving at about 10:50 UTC, during the stress ramp, so the real-model window has almost no spans or
+KPI events; that is consistent with the staging daily cap of 0.3 GB, which this run did not confirm. The client-side figures
+above do not depend on it. `release.yml` requires the `load-test` status on the tagged commit, so the gate runs again on the
+phase 8 merge commit before v1.0.0.
+
 ## DORA
 
 Read from the Actions runs with `gh run list --workflow deploy.yml` and `--workflow release.yml`, with dates:
@@ -138,7 +155,8 @@ Read from the Actions runs with `gh run list --workflow deploy.yml` and `--workf
 | Window | Deployment frequency | Lead time | Change failure rate | Time to restore |
 |---|---|---|---|---|
 | Staging, 2026-11-01 | 3 `deploy.yml` runs with a result, 2 successful (one commit, `c074a7e`) | PR #10: 5 min from merge (12:06) to staging (12:11), 12 min from opening | 1 of 3 (11:37, the Layout skill rejected in Spain Central) | 34 min, restored by PR #10 |
-| Production | *phase 8* | | | |
+| Staging, 2026-11-01 to 2026-11-03 | 9 `deploy.yml` runs with a result, 7 successful (7 merges in 3 days) | 5 to 8 min from merge to staging (PRs #10 to #16) | 2 of 9 (11-01 11:37, the Layout skill; 11-02 19:42, the runner's managed identity endpoint) | 34 min and 17 min |
+| Production | from v1.0.0: read with `gh run list --workflow release.yml` | | | |
 
 ## Switching on and off
 
@@ -156,4 +174,10 @@ Read from the Actions runs with `gh run list --workflow deploy.yml` and `--workf
 Estimated in `docs/cost.md`. Cost Management, read on 2026-11-02 (data lags up to a day): `rg-juriscope-stg-swc`, tag
 `project=product-legal-juriscope`, 0.40 € month to date, almost all Cosmos DB request units from the load test's 4,700 asks,
 with no Container Apps charge yet. The shared base (search, models, registry) bills to `rg-aiplatform-shared-swc` and is not split
-by product. Production has no cost until phase 8.
+by product. On 2026-11-03 the Cost Management query API answered 429 to the reads by the `environment` tag, so production's first
+month is read after the release, by `08-production.sh`'s summary or in the portal, by the `project` and `environment` tags.
+
+**Advisor, 2026-11-03:** staging: *increase the minimal replica count* (Medium), by design (staging scales to zero, ADR-008), and
+*enable zone redundancy for storage accounts* (High), rejected in ADR-011: the `corpus` container holds the public PDF, downloaded
+again from the BOE by `ops/corpus.py`. Production: nothing yet (only the identity and the environment exist). Read again after
+the first release.
