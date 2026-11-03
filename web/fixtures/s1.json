@@ -1,7 +1,7 @@
 {
  "id": "s1",
  "title": "Reckless homicide, with the full articles",
- "recorded": "2026-11-01",
+ "recorded": "2026-11-03",
  "meta": {
   "updated": "2026-04-09",
   "chat_model": "gpt-5-mini",
@@ -18,7 +18,7 @@
       "step": "analysing",
       "articles": null
      },
-     "at": 4688
+     "at": 4813
     },
     {
      "event": "phase",
@@ -26,15 +26,15 @@
       "step": "searching",
       "articles": null
      },
-     "at": 4688
+     "at": 4813
     },
     {
      "event": "phase",
      "data": {
       "step": "reading",
-      "articles": 10
+      "articles": 19
      },
-     "at": 5407
+     "at": 6156
     },
     {
      "event": "phase",
@@ -42,7 +42,7 @@
       "step": "drafting",
       "articles": null
      },
-     "at": 5422
+     "at": 6156
     },
     {
      "event": "phase",
@@ -50,7 +50,7 @@
       "step": "verifying",
       "articles": null
      },
-     "at": 10329
+     "at": 11016
     },
     {
      "event": "answer",
@@ -59,17 +59,17 @@
       "turn": {
        "id": "s1-1",
        "question": "What is the penalty for reckless homicide?",
-       "asked": "2026-11-01T09:50:57.682060Z",
+       "asked": "2026-11-03T11:14:56.681263Z",
        "outcome": {
         "usage": {
          "analyze_input": 884,
-         "analyze_output": 220,
+         "analyze_output": 300,
          "searches": 1,
-         "draft_input": 2490,
-         "draft_output": 647
+         "draft_input": 8576,
+         "draft_output": 574
         },
-        "cost_eur": 0.004028,
-        "text": "If, by gross negligence (imprudencia grave), one causes the death of another, the offender shall be punished with imprisonment of one to four years. [1]\n\nIf that negligent homicide is committed using a motor vehicle or moped, the court shall also impose deprivation of the right to drive motor vehicles and mopeds for one to six years. [1]\n\nIf the negligent homicide is committed using a firearm, the court shall also impose deprivation of the right to carry or possess firearms for one to six years. [1]\n\nIf the homicide is caused by professional negligence, the court shall also impose special disqualification for the exercise of the profession, trade or office for a period of three to six years. [1]\n\nIf, by less serious negligence (imprudencia menos grave), one causes the death of another, the offender shall be punished with a fine of three months to eighteen months. [1]\n\nIf that less serious negligent homicide is committed using a motor vehicle or moped, the court shall also impose deprivation of the right to drive motor vehicles and mopeds for three to eighteen months; if committed using a firearm, the court may also impose deprivation of the right to carry or possess firearms for three to eighteen months. [1]\n\nExcept when the less-serious negligent homicide is committed using a motor vehicle or moped, the offence provided in this subsection is only prosecutable upon complaint by the injured person or their legal representative. [1]",
+        "cost_eur": 0.005379,
+        "text": "Whoever by serious negligence causes the death of another (homicidio imprudente) shall be punished with imprisonment of one to four years. [1]\n\nIf the reckless homicide was committed using a motor vehicle or moped, the sentence shall also include deprivation of the right to drive motor vehicles and mopeds for one to six years; driving shall be deemed in any case serious negligence when the concurrence of any of the circumstances in article 379 determined the production of the fact. [1]\n\nIf the reckless homicide was committed using a firearm, the penalty shall also include deprivation of the right to carry or possess weapons for one to six years. [1]\n\nIf the homicide was caused by professional negligence, the penalty shall additionally include special disqualification for the exercise of the profession, trade or office for a period of three to six years. [1]\n\nWhoever by less serious negligence causes the death of another shall be punished with a fine of three months to eighteen months. [1]\n\nIf the less-serious negligent homicide was committed using a motor vehicle or moped, it shall also carry deprivation of the right to drive motor vehicles and mopeds for three to eighteen months; an act shall be deemed less serious negligence when it is not qualified as serious and the commission of some serious traffic offence was decisive for the production of the fact, a determination to be made in a reasoned decision. [1]\n\nIf the less-serious negligent homicide was committed using a firearm, the court may also impose deprivation of the right to carry or possess weapons for three to eighteen months. [1]\n\nExcept when committed using a motor vehicle or moped, the offence in the paragraph on less serious negligence is only prosecutable upon complaint by the injured party or their legal representative. [1]",
         "citations": [
          {
           "block_id": "a142",
@@ -93,14 +93,14 @@
           ]
          }
         ],
-        "claims": 7,
+        "claims": 8,
         "dropped_claims": 0,
         "language": "en",
         "facts_date": null
        }
       }
      },
-     "at": 10360
+     "at": 11110
     }
    ]
   }

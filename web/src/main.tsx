@@ -7,6 +7,7 @@ import { createRoot } from "react-dom/client";
 import Markdown from "react-markdown";
 import { answered, api, DEMO, RUNS, type Answer, type Me, type Meta, type Phase, type Run, type Summary, type Turn } from "./api";
 import { ArticleCard, RefusalCard } from "./Article";
+import { Evidence, EVIDENCE } from "./Evidence";
 
 const BRAND = `${import.meta.env.BASE_URL}brand/`;
 const SUGGESTIONS = [
@@ -98,8 +99,10 @@ function App() {
     api.me().then(setMe, fail);
     api.meta().then(setMeta, fail);
     refresh();
-    const run = RUNS.find((item) => new URLSearchParams(location.search).get("run") === item.id);
+    const id = new URLSearchParams(location.search).get("run");
+    const run = RUNS.find((item) => id === item.id);
     if (run) play(run);
+    else if (DEMO && EVIDENCE && id === "evidence") showEvidence();
   }, []);
   useEffect(() => void end.current?.scrollIntoView({ block: "end" }), [shown.length]);
 
@@ -143,6 +146,11 @@ function App() {
     for (const turn of run.turns) if (mine === generation.current) await ask(turn.question);
   }
 
+  function showEvidence() {
+    reset("evidence");
+    history.replaceState(null, "", "?run=evidence");
+  }
+
   function open(summary: Summary) {
     reset(summary.id, summary.id);
     const mine = generation.current;
@@ -167,7 +175,7 @@ function App() {
   }
 
   const listed = (DEMO
-    ? RUNS.map((run): Item => ({ key: run.id, label: run.title, go: () => play(run) }))
+    ? [...RUNS.map((run): Item => ({ key: run.id, label: run.title, go: () => play(run) })), ...(EVIDENCE ? [{ key: "evidence", label: "Evaluation gate and sign-in boundary", go: showEvidence }] : [])]
     : summaries.map((summary): Item => ({ key: summary.id, label: summary.title, go: () => open(summary), remove: () => remove(summary) }))
   ).filter((item) => item.label.toLowerCase().includes((filter ?? "").toLowerCase()));
   const heading = DEMO ? "Recorded runs" : "Conversations";
@@ -230,7 +238,11 @@ function App() {
               {failure}
             </p>
           )}
-          {shown.length === 0 ? (
+          {active === "evidence" && EVIDENCE ? (
+            <div className="thread" aria-label="Recorded evidence" tabIndex={0}>
+              <Evidence evidence={EVIDENCE} />
+            </div>
+          ) : shown.length === 0 ? (
             <div className="empty">
               <img src={`${BRAND}juriscope-icon.svg`} alt="" width={56} height={56} />
               <h2>Cited answers on the Spanish Criminal Code, with the full article and the version in force.</h2>

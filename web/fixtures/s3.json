@@ -1,7 +1,7 @@
 {
  "id": "s3",
  "title": "Case-law question, refused",
- "recorded": "2026-11-01",
+ "recorded": "2026-11-03",
  "meta": {
   "updated": "2026-04-09",
   "chat_model": "gpt-5-mini",
@@ -18,7 +18,7 @@
       "step": "analysing",
       "articles": null
      },
-     "at": 2000
+     "at": 3469
     },
     {
      "event": "refusal",
@@ -27,19 +27,19 @@
       "turn": {
        "id": "s3-1",
        "question": "¿Qué ha dicho el Tribunal Supremo sobre la legítima defensa putativa?",
-       "asked": "2026-11-01T09:51:16.564260Z",
+       "asked": "2026-11-03T11:15:19.032846Z",
        "outcome": {
         "usage": {
          "analyze_input": 890,
-         "analyze_output": 230
+         "analyze_output": 245
         },
-        "cost_eur": 0.000601,
+        "cost_eur": 0.000627,
         "reason": "out_of_scope",
         "scope": "case_law"
        }
       }
      },
-     "at": 2031
+     "at": 3531
     }
    ]
   }

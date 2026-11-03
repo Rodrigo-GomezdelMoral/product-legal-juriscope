@@ -1,7 +1,7 @@
 {
  "id": "s4",
  "title": "Fraud: limitation and a follow-up",
- "recorded": "2026-11-01",
+ "recorded": "2026-11-03",
  "meta": {
   "updated": "2026-04-09",
   "chat_model": "gpt-5-mini",
@@ -18,7 +18,7 @@
       "step": "analysing",
       "articles": null
      },
-     "at": 2281
+     "at": 3985
     },
     {
      "event": "phase",
@@ -26,15 +26,15 @@
       "step": "searching",
       "articles": null
      },
-     "at": 2281
+     "at": 3985
     },
     {
      "event": "phase",
      "data": {
       "step": "reading",
-      "articles": 10
+      "articles": 17
      },
-     "at": 2922
+     "at": 4532
     },
     {
      "event": "phase",
@@ -42,7 +42,7 @@
       "step": "drafting",
       "articles": null
      },
-     "at": 2922
+     "at": 4532
     },
     {
      "event": "phase",
@@ -50,7 +50,7 @@
       "step": "verifying",
       "articles": null
      },
-     "at": 8594
+     "at": 10344
     },
     {
      "event": "answer",
@@ -59,17 +59,17 @@
       "turn": {
        "id": "s4-1",
        "question": "¿Cuándo prescribe un delito de estafa?",
-       "asked": "2026-11-01T09:51:18.639828Z",
+       "asked": "2026-11-03T11:15:22.816919Z",
        "outcome": {
         "usage": {
          "analyze_input": 885,
-         "analyze_output": 260,
+         "analyze_output": 426,
          "searches": 1,
-         "draft_input": 4279,
-         "draft_output": 649
+         "draft_input": 5746,
+         "draft_output": 673
         },
-        "cost_eur": 0.004496,
-        "text": "El delito de estafa se castiga con la pena de prisión de seis meses a tres años. [1]\n\nLos delitos cuya pena máxima señalada por la ley no alcanza los cinco años prescriben a los cinco años, siendo en general, según el artículo 131, 'a los cinco, los demás delitos' (plazo de prescripción de las acciones penales). [2]\n\nEl último día para computar el plazo de prescripción comienza a contarse desde el día en que se haya cometido la infracción punible. [3]",
+        "cost_eur": 0.005153,
+        "text": "El delito de estafa está castigado con la pena de prisión de seis meses a tres años. [1]\n\nAplicando los artículos 248 y 131, los delitos cuya pena máxima sea la señalada en el artículo 248 (prisión de seis meses a tres años) prescriben a los cinco años, de modo que la estafa prescribe a los cinco años. [1][2]",
         "citations": [
          {
           "block_id": "a248",
@@ -112,52 +112,16 @@
             "url": "https://www.boe.es/buscar/act.php?id=BOE-A-1995-25444#a614"
            }
           ]
-         },
-         {
-          "block_id": "a132",
-          "title": "Artículo 132",
-          "url": "https://www.boe.es/buscar/act.php?id=BOE-A-1995-25444#a132",
-          "version": {
-           "norm": "BOE-A-2023-10213",
-           "published": "2023-04-28",
-           "in_force": "2023-04-29",
-           "text": "1. Los términos previstos en el artículo precedente se computarán desde el día en que se haya cometido la infracción punible. En los casos de delito continuado, delito permanente, así como en las infracciones que exijan habitualidad, tales términos se computarán, respectivamente, desde el día en que se realizó la última infracción, desde que se eliminó la situación ilícita o desde que cesó la conducta.\nEn los delitos de aborto no consentido, lesiones, contra la libertad, de torturas y contra la integridad moral, contra la intimidad, el derecho a la propia imagen y la inviolabilidad del domicilio, y contra las relaciones familiares, excluidos los delitos contemplados en el párrafo siguiente, cuando la víctima fuere una persona menor de dieciocho años, los términos se computarán desde el día en que ésta haya alcanzado la mayoría de edad, y si falleciere antes de alcanzarla, a partir de la fecha del fallecimiento.\nEn los delitos de tentativa de homicidio, de lesiones de los artículos 149 y 150, en el delito de maltrato habitual previsto en el artículo 173.2, en los delitos contra la libertad sexual y en los delitos de trata de seres humanos, cuando la víctima fuere una persona menor de dieciocho años, los términos se computarán desde que la víctima cumpla los treinta y cinco años de edad, y si falleciere antes de alcanzar esa edad, a partir de la fecha del fallecimiento.\n2. La prescripción se interrumpirá, quedando sin efecto el tiempo transcurrido, cuando el procedimiento se dirija contra la persona indiciariamente responsable del delito, comenzando a correr de nuevo desde que se paralice el procedimiento o termine sin condena de acuerdo con las reglas siguientes:\n1.ª Se entenderá dirigido el procedimiento contra una persona determinada desde el momento en que, al incoar la causa o con posterioridad, se dicte resolución judicial motivada en la que se le atribuya su presunta participación en un hecho que pueda ser constitutivo de delito.\n2.ª No obstante lo anterior, la presentación de querella o la denuncia formulada ante un órgano judicial, en la que se atribuya a una persona determinada su presunta participación en un hecho que pueda ser constitutivo de delito, suspenderá el cómputo de la prescripción por un plazo máximo de seis meses, a contar desde la misma fecha de presentación de la querella o de formulación de la denuncia.\nSi dentro de dicho plazo se dicta contra el querellado o denunciado, o contra cualquier otra persona implicada en los hechos, alguna de las resoluciones judiciales mencionadas en la regla 1.ª, la interrupción de la prescripción se entenderá retroactivamente producida, a todos los efectos, en la fecha de presentación de la querella o denuncia.\nPor el contrario, el cómputo del término de prescripción continuará desde la fecha de presentación de la querella o denuncia si, dentro del plazo de seis meses, recae resolución judicial firme de inadmisión a trámite de la querella o denuncia o por la que se acuerde no dirigir el procedimiento contra la persona querellada o denunciada. La continuación del cómputo se producirá también si, dentro de dicho plazo, el juez de instrucción no adoptara ninguna de las resoluciones previstas en este artículo.\n3. A los efectos de este artículo, la persona contra la que se dirige el procedimiento deberá quedar suficientemente determinada en la resolución judicial, ya sea mediante su identificación directa o mediante datos que permitan concretar posteriormente dicha identificación en el seno de la organización o grupo de personas a quienes se atribuya el hecho.\n4. En los procedimientos cuya investigación haya sido asumida por la Fiscalía Europea, la prescripción se interrumpirá:\na) cuando se dirija la investigación contra una persona determinada, suficientemente identificada, en los términos del apartado anterior, y así quede reflejado en un Decreto motivado.\nb) cuando se interponga querella o denuncia ante la Fiscalía Europea en la que se atribuya a una persona determinada su presunta participación en un hecho que pueda ser constitutivo de delito, resultando de aplicación la regla 2.ª del apartado 2 de este artículo.",
-           "note": "Se modifica el apartado 1 por el art único.1 de la Ley Orgánica 4/2023, de 27 de abril. Ref. BOE-A-2023-10213#au"
-          },
-          "current": null,
-          "repealed": null,
-          "see_also": [
-           {
-            "block_id": "a149",
-            "title": "Artículo 149",
-            "url": "https://www.boe.es/buscar/act.php?id=BOE-A-1995-25444#a149"
-           },
-           {
-            "block_id": "a150",
-            "title": "Artículo 150",
-            "url": "https://www.boe.es/buscar/act.php?id=BOE-A-1995-25444#a150"
-           },
-           {
-            "block_id": "a173",
-            "title": "Artículo 173",
-            "url": "https://www.boe.es/buscar/act.php?id=BOE-A-1995-25444#a173"
-           },
-           {
-            "block_id": "a131",
-            "title": "Artículo 131",
-            "url": "https://www.boe.es/buscar/act.php?id=BOE-A-1995-25444#a131"
-           }
-          ]
          }
         ],
-        "claims": 3,
+        "claims": 2,
         "dropped_claims": 0,
         "language": "es",
         "facts_date": null
        }
       }
      },
-     "at": 8609
+     "at": 10407
     }
    ]
   },
@@ -170,7 +134,7 @@
       "step": "analysing",
       "articles": null
      },
-     "at": 3031
+     "at": 3578
     },
     {
      "event": "phase",
@@ -178,15 +142,15 @@
       "step": "searching",
       "articles": null
      },
-     "at": 3031
+     "at": 3578
     },
     {
      "event": "phase",
      "data": {
       "step": "reading",
-      "articles": 10
+      "articles": 18
      },
-     "at": 3593
+     "at": 4235
     },
     {
      "event": "phase",
@@ -194,7 +158,7 @@
       "step": "drafting",
       "articles": null
      },
-     "at": 3609
+     "at": 4235
     },
     {
      "event": "phase",
@@ -202,7 +166,7 @@
       "step": "verifying",
       "articles": null
      },
-     "at": 8812
+     "at": 10469
     },
     {
      "event": "answer",
@@ -211,17 +175,17 @@
       "turn": {
        "id": "s4-2",
        "question": "¿Y si la estafa es agravada?",
-       "asked": "2026-11-01T09:51:27.289532Z",
+       "asked": "2026-11-03T11:15:33.386408Z",
        "outcome": {
         "usage": {
-         "analyze_input": 1042,
-         "analyze_output": 211,
+         "analyze_input": 1004,
+         "analyze_output": 206,
          "searches": 1,
-         "draft_input": 4972,
-         "draft_output": 610
+         "draft_input": 7976,
+         "draft_output": 672
         },
-        "cost_eur": 0.004528,
-        "text": "El delito de estafa será castigado con las penas de prisión de uno a seis años y multa de seis a doce meses cuando concurra alguna de las circunstancias siguientes: 1.º Recaiga sobre cosas de primera necesidad, viviendas u otros bienes de reconocida utilidad social; 2.º Se perpetre abusando de firma de otro, o sustrayendo, ocultando o inutilizando, en todo o en parte, algún proceso, expediente, protocolo o documento público u oficial de cualquier clase; 3.º Recaiga sobre bienes que integren el patrimonio artístico, histórico, cultural o científico; 4.º Revista especial gravedad, atendiendo a la entidad del perjuicio y a la situación económica en que deje a la víctima o a su familia; 5.º El valor de la defraudación supere los 50.000 euros, o afecte a un elevado número de personas; 6.º Se cometa con abuso de las relaciones personales existentes entre víctima y defraudador, o aproveche éste su credibilidad empresarial o profesional; 7.º Se cometa estafa procesal; 8.º Al delinquir el culpable hubiera sido condenado ejecutoriamente, al menos, por tres delitos menos graves o graves comprendidos en este capítulo, siempre que sean de la misma naturaleza. [1]\n\nSi concurrieren las circunstancias incluidas en los numerales 4.º, 5.º, 6.º o 7.º junto con la del numeral 1.º, se impondrán las penas de prisión de cuatro a ocho años y multa de doce a veinticuatro meses; la misma pena se impondrá cuando el valor de la defraudación supere los 250.000 euros. [1]",
+        "cost_eur": 0.005281,
+        "text": "El delito de estafa será castigado con las penas de prisión de uno a seis años y multa de seis a doce meses cuando concurra cualquiera de las circunstancias siguientes: 1.º Recaiga sobre cosas de primera necesidad, viviendas u otros bienes de reconocida utilidad social; 2.º Se perpetre abusando de firma de otro, o sustrayendo, ocultando o inutilizando, en todo o en parte, algún proceso, expediente, protocolo o documento público u oficial de cualquier clase; 3.º Recaiga sobre bienes que integren el patrimonio artístico, histórico, cultural o científico; 4.º Revista especial gravedad, atendiendo a la entidad del perjuicio y a la situación económica en que deje a la víctima o a su familia; 5.º El valor de la defraudación supere los 50.000 euros, o afecte a un elevado número de personas; 6.º Se cometa con abuso de las relaciones personales existentes entre víctima y defraudador, o aproveche éste su credibilidad empresarial o profesional; 7.º Se cometa estafa procesal; 8.º Al delinquir el culpable hubiera sido condenado ejecutoriamente, al menos, por tres delitos menos graves o graves comprendidos en este capítulo, siempre que sean de la misma naturaleza. [1]\n\nSi concurrieran las circunstancias incluidas en los numerales 4.º, 5.º, 6.º o 7.º junto con la del numeral 1.º del apartado anterior, se impondrán las penas de prisión de cuatro a ocho años y multa de doce a veinticuatro meses, y la misma pena se impondrá cuando el valor de la defraudación supere los 250.000 euros. [1]",
         "citations": [
          {
           "block_id": "a250",
@@ -246,7 +210,7 @@
        }
       }
      },
-     "at": 8859
+     "at": 10547
     }
    ]
   }

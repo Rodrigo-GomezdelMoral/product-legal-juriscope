@@ -1,7 +1,7 @@
 {
  "id": "s5",
  "title": "Self-defence, asked in English",
- "recorded": "2026-11-01",
+ "recorded": "2026-11-03",
  "meta": {
   "updated": "2026-04-09",
   "chat_model": "gpt-5-mini",
@@ -18,7 +18,7 @@
       "step": "analysing",
       "articles": null
      },
-     "at": 1953
+     "at": 4500
     },
     {
      "event": "phase",
@@ -26,15 +26,15 @@
       "step": "searching",
       "articles": null
      },
-     "at": 1953
+     "at": 4500
     },
     {
      "event": "phase",
      "data": {
       "step": "reading",
-      "articles": 10
+      "articles": 16
      },
-     "at": 2688
+     "at": 5109
     },
     {
      "event": "phase",
@@ -42,7 +42,7 @@
       "step": "drafting",
       "articles": null
      },
-     "at": 2688
+     "at": 5109
     },
     {
      "event": "phase",
@@ -50,7 +50,7 @@
       "step": "verifying",
       "articles": null
      },
-     "at": 5906
+     "at": 8109
     },
     {
      "event": "answer",
@@ -59,17 +59,17 @@
       "turn": {
        "id": "s5-1",
        "question": "What does the Criminal Code say about self-defence?",
-       "asked": "2026-11-01T09:51:36.210746Z",
+       "asked": "2026-11-03T11:15:44.248708Z",
        "outcome": {
         "usage": {
          "analyze_input": 887,
-         "analyze_output": 201,
+         "analyze_output": 310,
          "searches": 1,
-         "draft_input": 3656,
-         "draft_output": 338
+         "draft_input": 7453,
+         "draft_output": 343
         },
-        "cost_eur": 0.003708,
-        "text": "Article 20 exempts from criminal responsibility the person who acts in defense of their own or others’ person or rights, provided certain requirements concur. [1]\n\nThe requirements are: First, an illegitimate aggression; for defense of goods, an illegitimate aggression is the attack on them that constitutes a crime and puts them in grave danger of imminent deterioration or loss, and for defense of the dwelling or its dependencies an illegitimate aggression is unlawful entry into them. [1]\n\nSecond, the rational necessity of the means employed to prevent or repel the aggression; and Third, the lack of sufficient provocation by the defender. [1]",
+        "cost_eur": 0.004744,
+        "text": "Article 20 exempts from criminal liability the person who acts in defense of his or her own person or rights or those of others, provided certain requirements concur. [1]\n\nThose requirements are: (First) an illegitimate aggression (for defense of goods, an attack against them that constitutes a crime and puts them in grave danger of imminent deterioration or loss; for defense of the dwelling or its dependencies, an undue entry into them is deemed illegitimate aggression); (Second) the rational necessity of the means employed to prevent or repel it; (Third) the absence of sufficient provocation by the defender. [1]",
         "citations": [
          {
           "block_id": "a20",
@@ -87,14 +87,14 @@
           "see_also": []
          }
         ],
-        "claims": 3,
+        "claims": 2,
         "dropped_claims": 0,
         "language": "en",
         "facts_date": null
        }
       }
      },
-     "at": 5938
+     "at": 8156
     }
    ]
   }
