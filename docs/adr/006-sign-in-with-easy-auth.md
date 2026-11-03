@@ -53,8 +53,8 @@ Option 1.
 - **Spoofing, proven in staging (2026-11-01):** a forged `X-MS-CLIENT-PRINCIPAL` sent from outside with no session got 401; the
   same header beside a valid token got 200 as the token's user, the forged name ignored, because Easy Auth replaces it. An invalid
   bearer got 401.
-- **Claim shapes:** a v2 access token yields a principal without the `name_typ` claim, so `app/auth.py` falls back to `name`;
-  without it `/api/me` returned an empty name.
+- **Claim shapes:** a v2 access token yields a principal without the `name_typ` claim, and a browser session's `name_typ` carries
+  the e-mail address, so `app/auth.py` reads `name` first and falls back to `name_typ` (2026-11-02: the user block showed the e-mail).
 - **Ordering:** the Key Vault role is assigned in the same deployment, before the container app (module dependency). RBAC can take
   minutes to propagate, so a first deployment may fail to resolve the secret; rerunning `deploy.yml` fixes it, and `OPERATIONS.md`
   says so.
