@@ -126,10 +126,8 @@ def test_401(corpus: Corpus) -> None:
 def test_403(corpus: Corpus) -> None:
     api = Api(corpus)
     problem(api.http.get("/api/conversations", headers=principal("user-a", "Other.Role")), 403)
-    assert api.http.get("/api/me", headers=principal("user-a", ROLE, entra=True)).json() == {
-        "name": "Ana Ruiz",
-        "initials": "AR",
-    }
+    me = api.http.get("/api/me", headers=principal("user-a", ROLE, entra=True)).json()
+    assert me == {"name": "Ana Ruiz", "initials": "AR"}
     problem(api.http.get("/api/conversations/not-an-id", headers=ANA), 422)
     assert api.http.get("/api/meta", headers=ANA).json()["updated"] == "2026-04-09"
 
