@@ -22,10 +22,23 @@ Option 2.
   - It also requires the `load-test` commit status to be `success` for that same digest, then deploys it to production.
   - The production identity has AcrPull only, through its runtime identity.
 - **Canary:** each production revision is named after the release (`v1-0-0`) and starts behind the `canary` label. It then gets 10 %
-  of traffic for ten minutes, after a smoke test on the label, while the workflow reads its 5xx rate and p95 from Application
-  Insights; then 100 %, or traffic goes back and the run fails. Staging goes straight to 100 % once the canary label passes `/healthz`.
-- **Rollback:** an explicit promotion of an earlier release: `deploy.yml` with the previous digest for staging, then `release.yml` on
-  the previous tag, with approval.
+  of traffic for twelve minutes, after a smoke test on the label; the workflow reads that revision's requests and 5xx from the
+  Container Apps `Requests` metric, filtered on its revision name; then 100 %, or traffic goes back and the run fails. Staging goes
+  straight to 100 % once the canary label passes `/healthz`.
+- **Rollback:** an explicit promotion of an earlier release: `deploy.yml` with the previous digest for staging, then `release.yml`
+  dispatched with the previous tag as input, with approval; the fast path re-activates the previous revision (OPERATIONS.md).
+
+**Revised 2026-11-03 (release 1.0.1), after the validation:**
+- Until 1.0.1 the canary step read Application Insights requests whose `cloud_RoleInstance` starts with the revision name. That
+  field is a per-process id, so the query always returned 0 requests and the check always passed. The `Requests` metric has
+  `revisionName` and `statusCodeCategory` dimensions; `ResponseTime` has no revision dimension, so the p95 of one revision is not
+  measured until the app sets `service.instance.id` from the replica name, an `app/` change planned for the next release with a
+  load test. At about 350 questions a month, 10 % of twelve minutes rarely holds a request, so the summary says when the 5xx rule
+  did not apply; the label smoke test always runs.
+- A dispatch reused the revision suffix `v<major>-<minor>-<patch>` of a revision that already exists, which Container Apps rejects
+  (Learn on revision-scope changes and a Microsoft Q&A answer; not tried live).
+  A dispatch now appends `-r<run number>`, and takes the tag to deploy as an input, because a dispatch on an old tag would run
+  that tag's own, older workflow.
 
 ## Consequences
 

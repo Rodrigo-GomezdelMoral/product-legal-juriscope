@@ -23,7 +23,7 @@ jobs:
     env:
       RG: rg-juriscope-stg-swc
       APP: ca-juriscope-stg
-      AUTH_CLIENT_ID: ${{ vars.AUTH_CLIENT_ID }}
+      AUTH_CLIENT_ID: ${{ secrets.AUTH_CLIENT_ID }}
       GH_TOKEN: ${{ github.token }}
       LOCUST: locust -f load/locustfile.py --headless --only-summary --exit-code-on-error 0
     steps:
@@ -82,7 +82,6 @@ jobs:
           echo "::add-mask::$LOAD_TOKEN"
           export LOAD_TOKEN
           LOAD_SCENARIO=stress $LOCUST --host "https://$LOADTEST" --csv results/stress --html results/stress.html
-          echo "END=$(date -u +%Y-%m-%dT%H:%M:%SZ)" >> "$GITHUB_ENV"
       - name: Sign in again before the real model
         uses: azure/login@v3
         with:
@@ -96,11 +95,19 @@ jobs:
           export LOAD_TOKEN
           curl -fsS -o /dev/null --retry 18 --retry-delay 10 --retry-all-errors "https://$FQDN/healthz"
           LOAD_SCENARIO=real $LOCUST --host "https://$FQDN" --csv results/real --html results/real.html
-      - name: Replicas, CPU and memory during the run
+          echo "END=$(date -u +%Y-%m-%dT%H:%M:%SZ)" >> "$GITHUB_ENV"
+          sleep 180
+      - name: Sign in again after the metrics of the last minutes are ingested
+        uses: azure/login@v3
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+      - name: Replicas, CPU and memory over the whole run, the real-model stage included
         run: |
           app="$(az containerapp show -n "$APP" -g "$RG" --query id -o tsv)"
           az monitor metrics list --resource "$app" --metric Replicas UsageNanoCores WorkingSetBytes --aggregation Maximum --interval PT1M \
-            --start-time "$START" --query "value[].[name.value, max(timeseries[0].data[?maximum].maximum)]" -o tsv | tee results/platform.tsv
+            --start-time "$START" --end-time "$END" --query "value[].[name.value, max(timeseries[0].data[?maximum].maximum)]" -o tsv | tee results/platform.tsv
       - name: Check SLA-02 and the error rates, and set the load-test status on the tested commit
         run: |
           row() { awk -F, -v n="$2" '$2 == n { print $3, $4, $17 }' "results/$1_stats.csv"; }

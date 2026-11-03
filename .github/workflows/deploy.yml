@@ -31,14 +31,14 @@ jobs:
       RG: rg-juriscope-stg-swc
       APP: ca-juriscope-stg
       PARAMS: infra/main.staging.bicepparam
-      REGISTRY_LOGIN_SERVER: ${{ vars.REGISTRY_LOGIN_SERVER }}
-      FOUNDRY_PROJECT_ENDPOINT: ${{ vars.FOUNDRY_PROJECT_ENDPOINT }}
-      FOUNDRY_ACCOUNT_ENDPOINT: ${{ vars.FOUNDRY_ACCOUNT_ENDPOINT }}
-      SEARCH_ENDPOINT: ${{ vars.SEARCH_ENDPOINT }}
+      REGISTRY_LOGIN_SERVER: ${{ secrets.REGISTRY_LOGIN_SERVER }}
+      FOUNDRY_PROJECT_ENDPOINT: ${{ secrets.FOUNDRY_PROJECT_ENDPOINT }}
+      FOUNDRY_ACCOUNT_ENDPOINT: ${{ secrets.FOUNDRY_ACCOUNT_ENDPOINT }}
+      SEARCH_ENDPOINT: ${{ secrets.SEARCH_ENDPOINT }}
       SEARCH_INDEX: jur-articles-stg
       CHAT_MODEL: ${{ vars.CHAT_MODEL }}
       EMBEDDING_MODEL: ${{ vars.EMBEDDING_MODEL }}
-      AUTH_CLIENT_ID: ${{ vars.AUTH_CLIENT_ID }}
+      AUTH_CLIENT_ID: ${{ secrets.AUTH_CLIENT_ID }}
       AUTH_CLIENT_SECRET: ${{ secrets.AUTH_CLIENT_SECRET }}
       ALERT_EMAIL_ADDRESS: ${{ secrets.ALERT_EMAIL_ADDRESS }}
     steps:
@@ -69,11 +69,12 @@ jobs:
           context: .
           push: true
           provenance: false
-          tags: ${{ vars.REGISTRY_LOGIN_SERVER }}/product-legal-juriscope:${{ steps.tag.outputs.tag }}
+          tags: ${{ secrets.REGISTRY_LOGIN_SERVER }}/product-legal-juriscope:${{ steps.tag.outputs.tag }}
       - name: What-if, then deploy the digest as a new revision behind the canary label
         env:
           IMAGE_DIGEST: ${{ inputs.digest || steps.build.outputs.digest }}
         run: |
+          set -o pipefail
           test -n "$IMAGE_DIGEST"
           az config set extension.use_dynamic_install=yes_without_prompt --only-show-errors
           stable=""
@@ -81,7 +82,8 @@ jobs:
             stable="$(az containerapp revision list -n "$APP" -g "$RG" --query "[?properties.trafficWeight > \`0\`].name | [0]" -o tsv)"
           fi
           export STABLE_REVISION="$stable" REVISION_SUFFIX="r$GITHUB_RUN_NUMBER-$GITHUB_RUN_ATTEMPT"
-          az deployment group what-if -g "$RG" -p "$PARAMS" --result-format ResourceIdOnly --only-show-errors
+          az deployment group what-if -g "$RG" -p "$PARAMS" --result-format ResourceIdOnly --only-show-errors \
+            | sed -E 's/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/<guid>/g'
           out="$(az deployment group create -g "$RG" -n "juriscope-$REVISION_SUFFIX" -p "$PARAMS" --query properties.outputs -o json --only-show-errors)"
           fqdn="$(jq -r .fqdn.value <<< "$out")"
           echo "::add-mask::$fqdn"

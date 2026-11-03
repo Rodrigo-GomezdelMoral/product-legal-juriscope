@@ -13,7 +13,7 @@ Staging figures were measured in phase 7 (2026-11-01, times in UTC); figures mar
 | Container app | `ca-juriscope-stg` in `cae-juriscope-env` (France Central), 0 to 2 replicas | `ca-juriscope-prod` in `cae-juriscope-env`, 1 to 4 replicas |
 | Container Apps environment | shared: `cae-juriscope-env` in `rg-juriscope-prod-swc`; staging's CI joins it with a custom role (ADR-014) | declared by production's Bicep |
 | Data | `cosmos-juriscope-stg-swc`, `stjuriscopestgswc`, `kv-juriscope-stg-swc` | `cosmos-juriscope-prod-swc`, `stjuriscopeprodswc`, `kv-juriscope-prod-swc` |
-| Telemetry | `appi-juriscope-stg-swc`, cap 0.3 GB a day | `appi-juriscope-prod-swc`, cap 1 GB a day |
+| Telemetry | `appi-juriscope-stg-swc`, cap 0.3 GB a day (found at 2.0 GB on 2026-11-03, see *Load tests*) | `appi-juriscope-prod-swc`, cap 1 GB a day |
 | Search index | `jur-articles-stg` | `jur-articles-prod` |
 | Alerts | declared, disabled | enabled |
 | Changed by | `deploy.yml`, on every merge to `main` | `release.yml`, on a published release, after approval |
@@ -31,7 +31,15 @@ Staging figures were measured in phase 7 (2026-11-01, times in UTC); figures mar
   `web/**`, `docs/**`, any `*.md` or `.github/**` (ADR-015); its log prints the changed paths and the decision. With no such
   release, the first one (v1.0.0) included, the load test is required.
 - **To production:** `gh release create vX.Y.Z --notes-file <CHANGELOG section>`, then approve the `production` deployment.
-  `release.yml` promotes the staging digest of the tagged commit, with 10 % canary for ten minutes and then 100 %, or rolls back.
+  `release.yml` promotes the staging digest of the tagged commit: a smoke test on the `canary` label, 10 % of traffic for twelve
+  minutes, then the new revision's requests and 5xx from the Container Apps `Requests` metric, filtered on its revision name. It
+  moves to 100 % and deactivates the previous revision, or rolls back when 5xx exceed 1 % of the canary's requests. The job
+  summary prints both counts, and says when the canary received no request, which is common at production volume (about 350
+  questions a month): the 5xx rule then did not apply and only the smoke test guarded the promotion.
+  *Known limitation (release 1.0.1):* the p95 of one revision is not measured. `ResponseTime` has no revision dimension, and in
+  Application Insights `cloud_RoleInstance` is a per-process id, so until 1.0.1 the canary query matched nothing and always
+  passed. Planned: the app sets `service.instance.id` from the replica name, an `app/` change for the next release with a load
+  test.
 - **First deployment of an environment:** the Key Vault role and the container app are created in one deployment. If the revision
   fails to read `auth-client-secret` while RBAC propagates, rerun the workflow. Staging avoided it with a temporary Key Vault
   Secrets User on the resource group (`07-staging.sh`), removed after the first revision; later revisions resolve the secret with
@@ -39,13 +47,28 @@ Staging figures were measured in phase 7 (2026-11-01, times in UTC); figures mar
   production CI principal `Juriscope.User` (the smoke test calls `/api/meta` with its own token), sets `AUTH_CLIENT_SECRET` and
   `AUTH_CLIENT_ID` in `production` and adds the temporary role before v1.0.0; run again after the release, it adds the sign-in
   callback of the new app, removes the temporary role and opens production in the browser.
-- **Rollback:**
-  - staging: `gh workflow run deploy.yml --ref main -f digest=<previous digest>`;
-  - production: `gh workflow run release.yml --ref <previous tag>`, with approval.
-  - The first release has no previous revision to roll back to.
+- **Rollback, fast path by revision (production, seconds, no redeploy):** the previous release's revision is kept inactive
+  (`maxInactiveRevisions: 5`). With `P=ca-juriscope-prod G=rg-juriscope-prod-swc`:
+  1. `az containerapp revision list -n $P -g $G --all --query "[].[name, properties.active, properties.trafficWeight]" -o tsv`;
+  2. `az containerapp revision activate -n $P -g $G --revision $P--<previous>`, then wait until
+     `az containerapp revision show -n $P -g $G --revision $P--<previous> --query properties.healthState -o tsv` is `Healthy`;
+  3. `az containerapp ingress traffic set -n $P -g $G --revision-weight $P--<previous>=100 $P--<current>=0`;
+  4. check `/healthz` and the `Requests` metric by `revisionName`, then
+     `az containerapp revision deactivate -n $P -g $G --revision $P--<current>`.
+  The `canary` label stays on the current revision until the next deployment, which rewrites the traffic list. Going forward
+  again is the same four steps with the names swapped.
+- **Rollback, planned path (a full redeploy of an earlier release):**
+  - staging: `gh workflow run deploy.yml --ref main -f digest=<previous digest>`, then the same with the current digest. Such a
+    run uploads its digest as the artifact of `main`'s latest commit, and `release.yml` takes the latest successful run's
+    artifact, so a staging drill ends on the current digest before that commit is released;
+  - production: `gh workflow run release.yml --ref <latest release tag> -f tag=<previous tag>`, with approval. The workflow runs
+    from the ref and deploys the input tag's digest and Bicep as revision `v<major>-<minor>-<patch>-r<run number>`, behind the
+    same canary. The ref must be `v1.0.1` or later: earlier tags hold a workflow that reuses the existing revision's suffix, which
+    Container Apps rejects. The target commit's `image-<sha>` artifact must still exist (90 days, ADR-012).
 - **Urgent patch (OE:11):** the same path, pre-approved: `feature/hotfix-<what>`, PR with the required checks, merge, staging, load
   test, `vX.Y.Z+1`.
-- **Client secret rotation:**
+- **Client secret rotation** (the sign-in apps' secrets expire on 2027-11-01, staging, and 2027-11-03, production; rotate in
+  October 2027):
   1. add a secret to the sign-in app;
   2. update the environment secret `AUTH_CLIENT_SECRET`;
   3. rerun `deploy.yml` (or `release.yml`): Bicep writes the vault secret and the revision reads its latest version;
@@ -64,10 +87,24 @@ Each alert goes to its environment's action group `ag-juriscope-<env>-swc`, whic
 same rules disabled, so that an enabled log rule never bills there (checked deployed on 2026-11-01: the three rules exist,
 disabled). Application Insights adds a *Failure Anomalies* smart detector by itself; it is free and not in Bicep.
 
+**Known limitation: in-stream failures are not counted as unavailable** (measured 2026-11-03, release 1.0.1). The availability
+tile and alert count `toint(resultCode) >= 500`. The ask route streams, so a turn that fails after the stream started ends with an
+`error` event inside an HTTP 200 and counts as available, and its exception is recorded on the span only, not in the console
+logs. Staging, 30 days: 31 of 11,304 ask requests (0.27 %) were 200 with `success == false`, all `SearchUnavailableError` after the
+shared search service answered 504 under the stress ramps (20 at 08:45–09:15 UTC and 11 at 15:30–16:00 UTC on 2026-11-03).
+Production: 0 of 3. Until the fix, read them with `requests | where name has "messages" and success == false`. Planned for the
+next release with a load test: `success == false` in the availability tile and alert (`infra/`) and a console line for the
+in-stream exception (`app/`). The health model's *Ask* threshold is also stale (6 s, not the 13 s SLO): `PRODUCT.md` §6.
+
 ## Backup and restore
 
-- **Cosmos DB:** continuous backup, 7-day tier, point-in-time restore to a new account. RPO 15 minutes. Learn does not state the
-  continuous tier for serverless accounts explicitly; the deployed staging account shows `Continuous7Days` on serverless.
+- **Cosmos DB:** continuous backup, 7-day tier, point-in-time restore to a new account. RPO 15 minutes, a target with margin:
+  Learn (*Continuous backup with point-in-time restore*, 2026-07-13) says all mutations are backed up asynchronously within
+  100 seconds, and the drill's restored state was about 25 s behind. The 7-day tier is free. Learn does not state the continuous
+  tier for serverless accounts explicitly; the deployed staging account shows `Continuous7Days` on serverless.
+- **Restore caveats (Learn):** data-plane role assignments are not restored, so the app's Cosmos DB role is granted again on the
+  restored account (Bicep does it on redeploy); the containers keep their 90-day TTL unless the restore passes `--disable-ttl`, so
+  items older than 90 days at the restore time expire at once.
 - **Restore drill (staging, 2026-11-01):**
   1. `az cosmosdb restore` of `cosmos-juriscope-stg-swc` to the new account `cosmos-juriscope-stg-drill` at 12:24:14, decided
      at 12:31:30;
@@ -109,7 +146,9 @@ It then waits for `/healthz` 200 on the stable revision and runs ten minutes at 
 real-model p95 of `ask` is under 15,000 ms (SLA-02, restated in ADR-013) and no scenario fails more than 1 %. Since ADR-017 that
 p95 is exact: the nearest rank over every real-model ask's response time in `results/real_ask_ms.csv`, not Locust's percentile,
 which is rounded to two significant digits (15,000 covers about 14.5 to 15.5 s). The job summary and the status description show
-it in milliseconds with the number of asks. Replicas, CPU and memory maxima come from Azure Monitor.
+it in milliseconds with the number of asks. Replicas, CPU and memory maxima come from Azure Monitor, for the whole app. Until
+release 1.0.1 the query gave only a start time, so Azure CLI read one hour from it, which covered the real-model stage of every
+run so far; since 1.0.1 it ends explicitly three minutes after the real-model stage, so that the last minutes are ingested.
 
 | Date | Scenario | Users | Requests/s | p50 | p95 | p99 | Errors | Replicas |
 |---|---|---|---|---|---|---|---|---|
@@ -125,6 +164,12 @@ it in milliseconds with the number of asks. Replicas, CPU and memory maxima come
 | 2026-11-03 | stress, model double | 5 to 100 | 3.14 | 2.7 s | 17 s | 21 s | 17 of 3,761 | 2 (the maximum) |
 | 2026-11-03 | **real model, warm, with the *Analyst* deadline** | 3 | 0.15 | 9.3 s | **12 s** | 16 s | 0 of 45 | ≤ 2 |
 | 2026-11-03 | real model, warm, phase 8 merge | 3 | 0.15 | 9.5 s | 15 s | 20 s | 0 of 45 | 2 |
+| 2026-11-03 | real model, warm, release commit, first run | 3 | 0.15 | 9.1 s | 13.7 s (exact) | 16 s | 1 of 91 | 2 |
+| 2026-11-03 | normal, model double | 5 | 0.42 | 1.0 s | 4.8 s | 4.8 s | 0 of 75 | ≤ 2 |
+| 2026-11-03 | peak, model double | 20 | 1.61 | 1.4 s | 7.2 s | 7.4 s | 0 of 193 | ≤ 2 |
+| 2026-11-03 | soak, model double | 5 | 0.45 | 0.99 s | 1.4 s | 1.8 s | 0 of 270 | ≤ 2 |
+| 2026-11-03 | stress, model double | 5 to 100 | 3.26 | 2.7 s | 13 s | 20 s | 11 of 3,908 | 2 (the maximum) |
+| 2026-11-03 | **real model, warm, release commit (v1.0.0)** | 3 | 0.16 | 8.6 s | **12.8 s (exact)** | 22 s | 0 of 96 | 2 |
 
 Rates and percentiles are for the ask route at the client (Locust 2.47.0, run 41331036489, digest of `c074a7e`). **The run failed
 the SLA-02 gate** as it stood then (p95 < 8 s): the stable revision had idled at zero replicas through the 35 minutes of the
@@ -154,11 +199,19 @@ most. With 45 asks the p95 is the 3rd slowest ask, and Locust's 15,000 is a buck
 12,000 of `298ea6a` are consistent with the same code measured too coarsely on too few asks. ADR-017 makes the gate read the exact p95 and doubles
 the real-model stage to ten minutes. The gate runs again on that change's merge commit before v1.0.0.
 
+On the release commit `b8dd5e1` (2026-11-03), run 41650046759 **failed**: exact p95 13,745 ms on 91 real-model asks, but 1 ask ended
+in an in-stream `error` event, above the 1 % rule for 91 asks; its cause was never confirmed. **Run 41661582947 passed** on the
+same commit and digest (registry tag `20261103-main-b8dd5e1`, stable revision `--r12-1`), the digest v1.0.0 promoted: exact p95
+12,784 ms on 96 asks (recomputed from `real_ask_ms.csv`), median 8.6 s, maximum 22.1 s, 0 failed; normal, peak and soak without
+errors; the stress ramp's 11 failed asks (0.28 %) were the `SearchUnavailableError` streams of *Alerts*; 2 replicas, 0.51 vCPU
+and 0.52 GiB at most. The last seven rows of the table are these two runs, and run 41661582947 is the SLA-02 evidence of v1.0.0.
+
 **Known limitation: staging telemetry during load tests.** The staging Application Insights daily cap is 0.3 GB, reset at
 00:00 UTC, and is kept. The model-double scenarios of the morning run filled it at about 10:50 UTC on 2026-11-03, so run
 41637405127 has no spans or KPI events. The gate reads client-side times and does not depend on telemetry; explaining a slow
 ask does. Run a load test that may need diagnosis as the first of its UTC day, and check the cap in the portal before reading
-spans.
+spans. On 2026-11-03 the staging cap was found at 2.0 GB, set by hand after the 13:49 UTC deploy and outside Bicep. The next
+`deploy.yml` sets it back to 0.3 GB (its `what-if` deploys `pricingPlans/current`); the author's housekeeping script checks it.
 
 ## DORA
 
@@ -171,8 +224,8 @@ Read from the Actions runs with `gh run list --workflow deploy.yml` and `--workf
 | Window | Deployment frequency | Lead time | Change failure rate | Time to restore |
 |---|---|---|---|---|
 | Staging, 2026-11-01 | 3 `deploy.yml` runs with a result, 2 successful (one commit, `c074a7e`) | PR #10: 5 min from merge (12:06) to staging (12:11), 12 min from opening | 1 of 3 (11:37, the Layout skill rejected in Spain Central) | 34 min, restored by PR #10 |
-| Staging, 2026-11-01 to 2026-11-03 | 9 `deploy.yml` runs with a result, 7 successful (7 merges in 3 days) | 5 to 8 min from merge to staging (PRs #10 to #16) | 2 of 9 (11-01 11:37, the Layout skill; 11-02 19:42, the runner's managed identity endpoint) | 34 min and 17 min |
-| Production | from v1.0.0: read with `gh run list --workflow release.yml` | | | |
+| Staging, 2026-11-01 to 2026-11-03 | 11 `deploy.yml` runs with a result, 9 successful | 5 to 8 min from merge to staging (PRs #10 to #18) | 2 of 11 (11-01 11:37, the Layout skill; 11-02 19:42, the runner's managed identity endpoint) | 34 min and 17 min |
+| Production, 2026-11-03 | 1 release (v1.0.0, `release.yml` succeeded, approval recorded) | 8 min from tag (16:28) to production (16:36); 2 h 46 min from merge (13:49), the load test included | 0 of 1 | n/a |
 
 ## Switching on and off
 
@@ -193,7 +246,7 @@ with no Container Apps charge yet. The shared base (search, models, registry) bi
 by product. On 2026-11-03 the Cost Management query API answered 429 to the reads by the `environment` tag, so production's first
 month is read after the release, by `08-production.sh`'s summary or in the portal, by the `project` and `environment` tags.
 
-**Advisor, 2026-11-03:** staging: *increase the minimal replica count* (Medium), by design (staging scales to zero, ADR-008), and
-*enable zone redundancy for storage accounts* (High), rejected in ADR-011: the `corpus` container holds the public PDF, downloaded
-again from the BOE by `ops/corpus.py`. Production: nothing yet (only the identity and the environment exist). Read again after
-the first release.
+**Advisor, 2026-11-03, after v1.0.0:** staging: *increase the minimal replica count* (Medium), by design (staging scales to zero,
+ADR-008); *enable zone redundancy for storage accounts* (High), rejected in ADR-011: the `corpus` container holds the public PDF,
+downloaded again from the BOE by `ops/corpus.py`; *enable zone redundancy for the managed environment* (High), rejected in
+ADR-014. Production: no recommendation.

@@ -70,7 +70,7 @@ function Outcome({ turn, meta }: { turn: Turn; meta?: Meta }) {
       ))}
       {meta && (
         <footer className="notice">
-          <span lang="es">{meta.notice}</span> Last updated {meta.updated}. For the firm's lawyers. Not legal advice.
+          <a href="https://www.boe.es" target="_blank" rel="noreferrer" lang="es">{meta.notice}</a> Last updated {meta.updated}. For the firm's lawyers. Not legal advice.
         </footer>
       )}
       <Actions turn={turn} answer={outcome} />
@@ -89,6 +89,7 @@ function App() {
   const [draft, setDraft] = useState("");
   const [filter, setFilter] = useState<string>();
   const [menu, setMenu] = useState(false);
+  const menuButton = useRef<HTMLButtonElement>(null);
   const [failure, setFailure] = useState<string>();
   const generation = useRef(0);
   const end = useRef<HTMLDivElement>(null);
@@ -184,11 +185,11 @@ function App() {
   return (
     <div className="app">
       {DEMO && <header className="band">Demo mode · recorded runs from the deployed system</header>}
-      <div className="layout">
-        <button className="icon menu" aria-label="Sidebar" aria-expanded={menu} onClick={() => setMenu(!menu)}>
+      <div className="layout" onKeyDown={(event) => { if (event.key === "Escape" && menu) { setMenu(false); menuButton.current?.focus(); } }}>
+        <button ref={menuButton} className="icon menu" aria-label="Menu" aria-controls="sidebar" aria-expanded={menu} onClick={() => setMenu(!menu)}>
           <Menu size={20} />
         </button>
-        <aside className={menu ? "sidebar open" : "sidebar"} aria-label="Sidebar" onKeyDown={(event) => event.key === "Escape" && setMenu(false)}>
+        <aside id="sidebar" className={menu ? "sidebar open" : "sidebar"} aria-label="Sidebar">
           <h1>
             <img src={`${BRAND}juriscope-logo.svg`} alt="Juriscope" height={28} />
           </h1>
