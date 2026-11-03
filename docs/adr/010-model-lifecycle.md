@@ -19,7 +19,8 @@ behaviour silently.
   question in a pull-request run of `analyst_v4.md`, which adds the `left_out` field, and *Counsel*'s on three questions of
   one full run (trafficking, bribery, homicide in 2012). Only the tokens produced are billed, and the deployment's token
   counter deducts the prompt only, so the higher caps cost nothing unless they are used. The client has an explicit 60-second
-  timeout; the OpenAI SDK keeps its default retries.
+  timeout, which httpx applies per read, not to a whole stream; the OpenAI SDK keeps its default retries. *Analyst*'s whole run
+  has a 5-second deadline, then one retry bounded only by that timeout (ADR-016).
 - **Prompts** are files; a change is a new file and passes the gate. Phase 3 replaced `analyst_v1.md` and `counsel_v1.md` with
   `analyst_v2.md` and `counsel_v2.md` after the gate's first run, and phase 4 added `analyst_v3.md` and `counsel_v3.md`
   (*Analyst* restates the question and types the scope; *Counsel* reads only the restatement). `counsel_v4.md` followed in

@@ -607,6 +607,29 @@ phase closes and how each will be demonstrated (a test and, from phase 7, a live
   `load-test` status unless every path changed since the previous release that `release.yml` promoted matches `web/**`,
   `docs/**`, any `*.md` or `.github/**`. No such release (v1.0.0 included) requires it. The log prints the paths and the decision.
 
+## Analyst deadline (author's decision, 2026-11-03, branch `fix/analyst-deadline`)
+
+- **Evidence:** the SLA-02 rerun of 2026-11-03 (`load-test.yml` run 41603022081, real-model stage) had 43 asks, 0 failed, and failed
+  at p95 17,000 ms. The two slowest asks (29.7 and 21.7 s, warm replicas) spent 24.9 and 15.5 s in *Analyst*'s chat span with 239 and
+  179 output tokens; the 15.5 s call's response started at 2.9 s. Staging telemetry over two days: 56 *Analyst* calls, p50 3.4 s,
+  p95 11.1 s, input p50 888 tokens, output p50 251; 3 calls over 8 s, all 3 over 11 s, and 4 over 5 s.
+- **Decision (ADR-016):** an agent middleware `deadline` on *Analyst* (`app/agents.py`) runs `call_next()` and consumes the stream
+  inside `asyncio.timeout(ANALYST_DEADLINE_SECONDS)` (5, the author's choice over the first 8). When the timeout passes it logs the custom event `AnalystRetried` and runs once
+  more with no deadline beyond the client's 60-second read timeout. *Counsel* is unchanged. Other errors propagate as before.
+- **Verified in the installed wheels:** `agent_framework.agent_middleware` and `AgentContext`. `call_next` can be called again: each
+  call runs the agent once more and replaces `context.result`. For a streamed run the middleware itself runs on first iteration, inside
+  the workflow's `analyze` step. `ResponseStream.get_final_response()` consumes and finalizes the stream, and a cancelled
+  `__anext__` closes the provider stream. A plain `BaseChatClient` wrapper was rejected: `Agent` logs "does not support function
+  invoking" on every build.
+- **Tests:** `test_slow_analyst_is_cut_and_retried_once` (the deadline patched to 0.1 s; the first attempt 1 s and out of scope, the
+  second 0 or 0.3 s). It was shown to fail without the middleware, and its 0.3 s case to fail with a deadline on the second attempt.
+  To fit the 700-line test budget, five assertions in `test_workflow.py`, `test_api.py`, `test_corpus.py` and `test_eval.py` were
+  written on fewer lines, with the same checks.
+- **Expected effect** (ADR-016): a retried ask takes about 5 + 3.4 + 4.8 to 6.2 s ≈ 13.2 to 14.6 s, under 15 s (at 8 s it would be
+  16.2 to 17.6 s). 4 of 56 calls (about 7 %) would be cut; cost about 0.00004 € per question. The `ONLY=load` rerun measures it.
+- **Author's order:** `publish-analyst-deadline.sh`; merge; `deploy.yml` succeeds on the merge commit; `ONLY=browser`, then
+  `ONLY=load 07-live-runs.sh`.
+
 ## Verified names (installed wheels, 2026-10-30)
 
 Installed together: `agent-framework-core` 1.23.0, `agent-framework-foundry` 1.15.0 (it brings `agent-framework-openai` 1.17.0 and
