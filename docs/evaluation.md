@@ -50,13 +50,16 @@ the cases it applies to, and its value is the share of those cases where the che
   judge's 60,000-token completion cap, so the judge does not starve the shared quota. Since 2026-10-31 the judge's query is
   *Analyst*'s restatement (`Answer.question`, kept out of the API's JSON), not the raw question: an adversarial question carries
   an injection that *Counsel* never sees, and the judge marked faithful answers down for not following it (see the measurements).
-- **Concurrency and quota.** At most four cases run at a time, each case's two agent calls and its judge call in sequence. A `429`
+- **Concurrency and quota.** At most two cases run at a time, each case's two agent calls and its judge call in sequence. A `429`
   on the HTTP response is retried by the OpenAI SDK, which honours `Retry-After`. Under load, the shared deployment also rejects a
   request *inside* the streamed response (an `openai.APIError`, not an `APIStatusError`), which the SDK cannot retry. The runner
-  then retries the whole case after 20, 40 and 80 seconds, outside the concurrency limit, and does the same for a lost
+  then retries the whole case after 30, 60 and 120 seconds, outside the concurrency limit, and does the same for a lost
   connection (`openai.APIConnectionError`, not its timeout subclass: a timeout is a latency failure and stays an error). Each
-  retry is logged to standard error with the cause and the wait. A full run reaches the deployment's
-  100K tokens per minute, so it throttles every other caller of the shared deployment while it runs: start it when no other load test is running.
+  retry is logged to standard error with the cause and the wait. At four cases at a time a full run reached the deployment's
+  100K tokens per minute on its own (about 500K prompt tokens in five minutes on 2026-11-03), and two full runs on `main` failed
+  only on `errors` (5 and 6 cases rejected with 429 after every retry, every quality metric passing). Two at a time halves the
+  peak and doubles the run to about 20 minutes. It still throttles other callers of the shared deployment while it runs:
+  start it when no other load test is running.
 - **Errors in the report** are one line each, at most 200 characters, with host names replaced by `<host>`. The pull-request
   comment and the artifacts of a public repository are public.
 

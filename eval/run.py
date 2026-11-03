@@ -28,7 +28,7 @@ from eval.evaluators import METRICS, Case, Observed, judge
 ROOT = Path(__file__).resolve().parent
 FULL = ["golden", "versions", "unanswerable", "adversarial"]
 THRESHOLDS: dict[str, dict[str, float]] = yaml.safe_load((ROOT / "thresholds.yaml").read_text("utf-8"))
-CONCURRENCY, PAUSES, LOW_GROUNDEDNESS = 4, (20, 40, 80), 0.75
+CONCURRENCY, PAUSES, LOW_GROUNDEDNESS = 2, (30, 60, 120), 0.75
 HOST = re.compile(r"[\w-]+(?:\.[\w-]+)*\.(?:com|net|io)\b\S*")
 Metric = tuple[float, int, list[str]]
 
