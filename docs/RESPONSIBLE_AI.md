@@ -4,10 +4,11 @@ Juriscope's impact assessment follows the sections of the
 [Microsoft Responsible AI Impact Assessment Template](https://msblogs.thesourcemediaassets.com/sites/5/2022/06/Microsoft-RAI-Impact-Assessment-Template.pdf)
 (June 2022) and the responsible AI guidance of the
 [Well-Architected AI workload guide](https://learn.microsoft.com/azure/well-architected/ai/responsible-ai). Measured figures carry
-their date and come from [evaluation.md](evaluation.md). **Status, 2026-10-31:** the question-to-answer flow and the evaluation gate
-are implemented and tested locally against the shared models, and so are the API's sign-in boundary, feedback events and
-deletion (phase 4, with the Cosmos DB emulator). Easy Auth and the deployment come in phase 7, so nothing here has run in staging
-or production yet.
+their date and come from [evaluation.md](evaluation.md). **Status, 2026-11-03 (release 1.0.1):** everything below runs in
+staging since 2026-11-01 and in production since release 1.0.0 (2026-11-03). Production evidence so far is the author's sign-in
+check of 2026-11-03 (three answered questions, both versions side by side, the user's name and role shown); the walk-through of
+every *Must*, the first feedback and the deletion of all of a user's conversations follow release 1.0.1
+([OPERATIONS.md](OPERATIONS.md)).
 
 ## 1. System information
 
@@ -18,7 +19,8 @@ or production yet.
   Code and picks each article's version. *Counsel*, a language model, drafts claims that may cite only the retrieved articles. Code
   then drops every claim whose citations were not retrieved. The model never writes the article text: it always comes from the
   version store ([ADR-001](adr/001-graph-workflow.md), [ADR-005](adr/005-structured-output-and-verification.md)).
-- **Deployment:** one firm, one Entra ID tenant, a web client behind Entra sign-in, hosted in Sweden Central. Released through
+- **Deployment:** one firm, one Entra ID tenant, a web client behind Entra sign-in. The app runs in France Central
+  ([ADR-014](adr/014-one-container-apps-environment.md)); conversations and telemetry stay in Sweden Central. Released through
   staging and an approved production release.
 - **Languages:** the answer follows the language of the question; article text stays verbatim in Spanish.
 - **Intended use:** support for the firm's lawyers in steps 2 to 6 of their research (identification, search, reading, version check
@@ -65,8 +67,9 @@ or production yet.
     guardrail, so it stays as it is.
   - **The same filter refuses a question on sharing intimate images without consent** (article 197.7), in every phase 3 run. It
     is the one false refusal of the golden set.
-  - **Model retirement:** `gpt-5-mini` 2025-08-07 retires on 2027-02-09 ([ADR-010](adr/010-model-lifecycle.md)); the replacement
-    must pass the full suite.
+  - **Model retirement:** `gpt-5-mini` 2025-08-07 retires on 2027-07-13 (Models API and Learn, read 2026-11-03;
+    [ADR-010](adr/010-model-lifecycle.md)). The replacement is expected between about 2027-03-15 and 2027-04-14 and must pass
+    the full suite before it reaches production.
 - **Predictable failures:**
   - *False negative:* a relevant article is not retrieved, so the answer is incomplete. Measured by Recall@5.
   - *False positive:* an article that does not support the claim is cited. Measured by citation precision and groundedness.
@@ -113,4 +116,5 @@ or production yet.
 | Injection | Prompt Shields; code decides retrieval and citations; code keeps *Analyst*'s `left_out` passages out of the restatement and the answer; canary | `test_injected_instructions_never_reach_the_answer`, `test_claims_drop_only_text_foreign_to_the_code`; adversarial set, canary appearances 0 |
 | Disclosure of client data | user partition, no text in telemetry, `store: False`, 90-day TTL, deletion | phase 4 tests; phase 7 live checks |
 
-The author holds the review and sign-off roles and signs off at release 1.0.0.
+The author holds the review and sign-off roles. No sign-off was recorded at release 1.0.0; the author signs this assessment off
+with release 1.0.1 by merging the pull request that brings it up to date (2026-11-03).

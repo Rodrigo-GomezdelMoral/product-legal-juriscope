@@ -11,8 +11,9 @@ behaviour silently.
 ## Decision
 
 - **Models:** `gpt-5-mini` version `2025-08-07` for *Analyst* and *Counsel*, and `text-embedding-3-small` version 1 for the index
-  and its vectorizer, all Global Standard. Retirement dates read from the Models API on 2026-10-31: **2027-02-09** for
-  `gpt-5-mini` and **2028-02-09** for the embeddings.
+  and its vectorizer, all Global Standard. Retirement dates read from the Models API on 2026-11-03 and confirmed by Learn's
+  *Model retirement schedule* (updated 2026-09-21): **2027-07-13** for `gpt-5-mini` and **2028-02-09** for the embeddings. Until
+  2026-11-03 this record said 2027-02-09 for `gpt-5-mini`, which is the date of `gpt-5` and `gpt-5-nano`, read in error.
 - **Settings** (`app/agents.py`): `reasoning.effort` `low`, no temperature or `top_p` (reasoning models reject them), `store: False`,
   and `max_tokens` 1,600 for *Analyst* and 4,000 for *Counsel*, reasoning tokens included. Over 19 live answers the largest outputs
   were 488 and 1,293 tokens. Until 2026-10-31 the caps were 800 and 3,000: *Analyst*'s JSON was cut mid-string on a case-law
@@ -37,9 +38,10 @@ behaviour silently.
   faithful answers 4 of 5 for not following it, and pull-request runs of the same prompts swung across the 0.90 line. Groundedness
   measured before that date used the raw question, so a comparison with the baseline uses figures measured the same way
   ([evaluation.md](../evaluation.md)).
-- **Replacement:** Microsoft names the replacement about 90 to 120 days before retirement (Learn, model lifecycle, 2026-07-24).
-  The change is one deployment name in the settings, and it must pass the full evaluation suite against the baseline in
-  `docs/evaluation.md`.
+- **Replacement:** Microsoft names the replacement about 90 to 120 days before retirement (Learn, model lifecycle, 2026-07-24),
+  so between about 2027-03-15 and 2027-04-14 for `gpt-5-mini`. The change is one deployment name in the settings, and it must
+  pass the full evaluation suite against the baseline in `docs/evaluation.md` and the load test, and reach production before
+  2027-07-13.
 
 ## Consequences
 
