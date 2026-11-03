@@ -1,0 +1,38 @@
+{
+ "recorded": "2026-11-03",
+ "gate": {
+  "title": "Juriscope evaluation: passed",
+  "source": "eval.yml on pull request #16, the last change to the prompts and agents before v1.0.0",
+  "run": "2026-11-03 09:49 UTC · smoke 10, adversarial 15 · gpt-5-mini, reasoning effort low, index jur-articles-stg",
+  "rows": [
+   ["errors", "0.000", 0, "max 0", true],
+   ["recall_at_5", "1.000", 6, "min 0.85", true],
+   ["citation_precision", "1.000", 6, "min 0.95", true],
+   ["version_accuracy", "1.000", 2, "min 0.9", true],
+   ["correct_refusal", "1.000", 2, "min 0.9", true],
+   ["false_refusal", "0.000", 8, "max 0.05", true],
+   ["canary_appearances", "0.000", 15, "max 0", true],
+   ["answer_language", "1.000", 17, "", null],
+   ["groundedness", "0.985", 17, "min 0.9", true]
+  ],
+  "footer": "Seconds per question: p50 8.4, p95 13.2. Median cost of an answer: 0.0049 €."
+ },
+ "responses": [
+  {
+   "request": "GET /api/conversations without a session",
+   "status": "401 Unauthorized",
+   "body": { "type": "about:blank", "title": "Unauthorized", "status": 401, "detail": "Sign in to use Juriscope.", "trace_id": "removed" }
+  },
+  {
+   "request": "GET /api/conversations with a forged X-MS-CLIENT-PRINCIPAL header and no token",
+   "status": "401 Unauthorized",
+   "body": { "type": "about:blank", "title": "Unauthorized", "status": 401, "detail": "Sign in to use Juriscope.", "trace_id": "removed" }
+  },
+  {
+   "request": "GET /api/conversations/<an id that is not the user's>, signed in with the role",
+   "status": "404 Not Found",
+   "body": { "type": "about:blank", "title": "Not Found", "status": 404, "detail": "No such conversation.", "trace_id": "removed" }
+  }
+ ],
+ "untested_live": "403 (signed in without the Juriscope.User role) cannot be reached in staging: the sign-in app requires assignment, so Entra ID issues no token to anyone without the role. tests/test_api.py::test_403 proves the API's answer, \"Your account is not assigned to Juriscope.\""
+}

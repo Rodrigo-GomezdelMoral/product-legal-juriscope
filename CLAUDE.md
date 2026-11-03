@@ -54,7 +54,10 @@ phase closes and how each will be demonstrated (a test and, from phase 7, a live
   exist; a temporary Key Vault Secrets User on the resource group for the first revision, removed after it; `deploy.yml` on
   `main`; the redirect URI; Search Index Data Reader on `jur-articles-stg` for the pull-request identity; `EVAL_SEARCH_INDEX`), `07-live-runs.sh`
   (phase 7: `load-test.yml`, the full `eval.yml`, the browser sign-in; results to `%TEMP%\juriscope-p07`).
-  Planned: `08-production.sh` (phase 8; `DEPLOY_ENABLED` is not read by `release.yml`).
+  `08-production.sh` (phase 8: sign-in app `product-legal-juriscope-production` like staging's, `Juriscope.User` for the author and the
+  production CI principal, `AUTH_CLIENT_SECRET` and `AUTH_CLIENT_ID` in `production`, a temporary Key Vault Secrets User for the first
+  revision; run again after v1.0.0 for the callback, the role's removal, the browser check and a summary in `%TEMP%\juriscope-p08`;
+  `DEPLOY_ENABLED` is not read by `release.yml`).
 - **Azure only in phases 7 and 8.** Until then: local, the Cosmos DB emulator, Bicep `what-if`, and the shared model deployments and
   `jur-articles-local` index with the author's own identity. Before creating anything that bills by the hour, state its price and how
   it is switched off. Staging ends every deploying phase at zero replicas.
@@ -629,6 +632,26 @@ phase closes and how each will be demonstrated (a test and, from phase 7, a live
   16.2 to 17.6 s). 4 of 56 calls (about 7 %) would be cut; cost about 0.00004 € per question. The `ONLY=load` rerun measures it.
 - **Author's order:** `publish-analyst-deadline.sh`; merge; `deploy.yml` succeeds on the merge commit; `ONLY=browser`, then
   `ONLY=load 07-live-runs.sh`.
+
+## Phase 8 (2026-11-03, branch `feature/release`)
+
+- **Inputs read:** `browser.txt` (code-flow sign-in and the user's name, both `y`), and `load-test.yml` run 41619345584 on `298ea6a`:
+  passed, real model 45 asks, p50 9.3 s, p95 12.0 s, p99 16 s, 0 failed; normal, peak and soak without errors; stress 17 of 3,761
+  streams without an outcome at 100 users (no gate). The SLA-02 margin is about 3 s. Staging telemetry stopped at about 10:50 UTC in
+  the stress ramp (consistent with the 0.3 GB daily cap, not confirmed), so the real-model window has almost no spans.
+- **Fixtures** re-recorded from staging with `python -m ops.record --url <app>` and the author's CLI token for `user_impersonation`
+  (11:17 UTC): S1 to S5, all ending in an answer or a refusal; S4's first turn now cites 248 and 131 (limitation), the follow-up 250.
+- **Evidence panel** (the build prompt's Demo section, REQ-05 and REQ-07): `web/src/Evidence.tsx` and
+  `web/fixtures/evidence/evidence.json` (a subfolder, so the run glob and the axe loop skip it; axe gets `?run=evidence`). It shows
+  PR #16's gate comment and the 401 (no session; forged header) and 404 (an id that is not the user's) recorded from staging at
+  11:18 UTC, trace ids removed. 403 is unreachable live (assignment required), so the panel says `test_403` proves it.
+- **Release checks (read only):** `cae-juriscope-env` exists in francecentral (1 of 2), 4 environments of 5 in the subscription;
+  the release adds `ca-juriscope-prod` and creates no environment. `validate` of `main.production.bicepparam` with concrete values
+  and of `environment.bicep` alone: `Succeeded`. Production CI holds its four roles; production runtime identity its three.
+  Cost Management answered 429 again; Advisor added *zone redundancy for storage* on staging (ADR-011).
+- **Author's order:** `08-production.sh`; `publish-release.sh`; merge; `deploy.yml` and `pages.yml` succeed on the merge commit;
+  `ONLY=load 07-live-runs.sh` (the `load-test` status on that commit); publish v1.0.0 on that commit; approve; `08-production.sh`
+  again.
 
 ## Verified names (installed wheels, 2026-10-30)
 

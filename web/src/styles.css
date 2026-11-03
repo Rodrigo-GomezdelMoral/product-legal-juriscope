@@ -621,3 +621,12 @@ th {
 .notice {
   margin-top: 12px;
 }
+
+.evidence pre {
+  margin: 4px 0 12px;
+  padding: 8px;
+  background: var(--bg);
+  border-radius: 8px;
+  font-size: 13px;
+  white-space: pre-wrap;
+}

@@ -2,7 +2,7 @@
 
 ```mermaid
 graph LR
-    U["Lawyer · browser"] -->|Entra sign-in · Easy Auth| CA["ca-juriscope-env in cae-juriscope-env · FastAPI + web · France Central"]
+    U["Lawyer · browser"] -->|Entra sign-in · Easy Auth| CA["ca-juriscope-stg or -prod in cae-juriscope-env · FastAPI + web · France Central"]
     CA --> WF["Juriscope workflow · WorkflowBuilder"]
     WF --> AN["analyze · Analyst · gpt-5-mini"]
     WF --> RT["retrieve · code"]
@@ -27,7 +27,8 @@ graph LR
   identity) and the shared Foundry account, registry and workspace.
 
 Every dependency call leaves France Central: search to Spain Central, model, Cosmos DB, Key Vault and telemetry calls to Sweden
-Central, a few KB per question. Phase 8 measures the steps again from the new region. Nothing is stored at rest in France Central,
+Central, a few KB per question. From France Central, the SLA-02 load test of 2026-11-03 measured a real-model p95 of 12.0 s at
+the client (45 answers, with ADR-016's deadline on *Analyst*). Nothing is stored at rest in France Central,
 and in Spain Central only the public text of the Code in the search index (ADR-009).
 
 ## Request path
