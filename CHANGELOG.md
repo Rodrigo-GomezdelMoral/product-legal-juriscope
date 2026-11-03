@@ -7,6 +7,11 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ## [Unreleased]
 
+### Changed
+
+- The evaluation runner runs two cases at a time instead of four and retries a throttled case after 30, 60 and 120 seconds.
+  Two full runs on `main` reached the shared deployment's 100K tokens per minute on their own and failed only on `errors`.
+
 ## [1.0.1] - 2026-11-03
 
 A patch from the validation of 1.0.0: the release's canary check and its rollback now do what the documents say, public run
