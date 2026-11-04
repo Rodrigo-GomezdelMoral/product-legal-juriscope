@@ -55,21 +55,22 @@ a test, live evidence in staging and a recorded run or evidence in the demo.
 
 | ID | Must | Test | Live evidence (staging) | Demo |
 |---|---|---|---|---|
-| REQ-01 | Every claim cites its article, linked to boe.es | `test_claims_cite_retrieved_articles` | citation precision 1.000 on 58 cases (2026-11-01) | S1 |
+| REQ-01 | Every claim cites its article, linked to boe.es | `test_claims_cite_retrieved_articles` | citation precision 1.000 on 57 cases (2026-11-03) | S1 |
 | REQ-02 | The whole article, not a fragment | `test_full_article`, `test_answer_carries_full_articles` | *Show full article* in the browser (2026-11-01) | S1 |
-| REQ-03 | The version that applies | `test_version_at`, `test_facts_date_selects_version` | version accuracy 1.000 on 15 cases; 2014 and 2015 wordings side by side | S2 |
-| REQ-04 | An explicit refusal | `test_out_of_scope_refused_without_retrieval`, `test_no_evidence_refusal` | correct refusal 1.000 on 20 cases, false refusal 0.027 on 75 | S3 |
-| REQ-05 | An evaluation gate on every change | `eval/run.py` exit code | `eval.yml` comment on PR #16, passed (2026-11-03) | evidence panel |
+| REQ-03 | The version that applies | `test_version_at`, `test_facts_date_selects_version` | version accuracy 1.000 on 15 cases (2026-11-03); 2014 and 2015 wordings side by side | S2 |
+| REQ-04 | An explicit refusal | `test_out_of_scope_refused_without_retrieval`, `test_no_evidence_refusal` | correct refusal 1.000 on 20 cases, false refusal 0.040 on 75 (2026-11-03) | S3 |
+| REQ-05 | An evaluation gate on every change | `eval/run.py` exit code | `eval.yml` passed on PRs #19 and #24, and the full suite on `main` (run 41719593012, 2026-11-03) | evidence panel |
 | REQ-06 | Saved conversations: list, resume, delete | `test_resume`, `test_delete` | follow-up, reload, resume and delete in the browser (2026-11-01) | S4 |
 | REQ-07 | Only signed-in members with the role, each seeing their own | `test_401`, `test_403`, `test_404_other_user` | 401 without a session and with a forged header, 404 for another id (2026-11-03) | evidence panel |
 
 The *Should* and *Could* requirements: "See also" references (REQ-08, S1), 👍/👎 feeding K3 (REQ-09, `FeedbackGiven` seen in KQL),
 a 90-day TTL on both containers (REQ-10, read on the deployed account), and answers in the language of the question (REQ-11,
-answer language 0.988 on 82 cases, S5).
+answer language 0.975 on 81 cases on 2026-11-03, S5).
+The evaluation figures dated 2026-11-03 are the full suite on `main`, the same `app/` as v1.0.1 ([docs/evaluation.md](docs/evaluation.md)).
 
 | SLA | Committed | Measured |
 |---|---|---|
-| SLA-01 availability | ≥ 99.5 % a month | production since v1.0.0 (2026-11-03); measured by the workbook, which does not yet count a question that fails after its stream has started (known limitation, [OPERATIONS.md](docs/OPERATIONS.md#alerts)) |
+| SLA-01 availability | ≥ 99.5 % a month | production since v1.0.0 (2026-11-03); first reading, 2026-11-04 over 30 days: 100 % of 94 `/api` requests (test traffic), the monthly window not yet measurable; measured by the workbook, which does not yet count a question that fails after its stream has started (known limitation, [OPERATIONS.md](docs/OPERATIONS.md#alerts)) |
 | SLA-02 latency | 95 % of answers under 15 s, progress within 0.1 s | exact p95 12.8 s (12,784 ms) on 96 real-model answers, 0 failed, on the image in production (`load-test.yml` run 41661582947, 2026-11-03); progress in 10 to 27 ms (browser, 2026-11-01) |
 
 ## KPIs
@@ -79,13 +80,14 @@ Bicep.
 
 | KPI | Formula | Target | Measured |
 |---|---|---|---|
-| K1 Time to accepted answer | median minutes from `QuestionAsked` to the first copy or 👍 | ≤ 10 min | production only, from v1.0.0 (today: 30 to 75 min for steps 2 to 6) |
-| K2 Grounded first draft | answered turns with no claim dropped ÷ answered turns | ≥ 95 % | staging, 2026-11-01: 5 of 5 answered turns with no claim dropped (test traffic, not users) |
-| K3 Helpful answers | 👍 ÷ (👍 + 👎) | ≥ 80 % | production only, from v1.0.0 |
-| K4 Weekly active seats | distinct users asking in an ISO week ÷ 18 seats | ≥ 70 % | production only, from v1.0.0 |
+| K1 Time to accepted answer | median minutes from `QuestionAsked` to the first copy or 👍 | ≤ 10 min | production: 370.1 min on 1 turn, a copy made in the walk-through of an answer asked about six hours earlier (today: 30 to 75 min for steps 2 to 6) |
+| K2 Grounded first draft | answered turns with no claim dropped ÷ answered turns | ≥ 95 % | production: 100 % (8 of 8 answered turns); staging, 2026-11-01: 5 of 5 |
+| K3 Helpful answers | 👍 ÷ (👍 + 👎) | ≥ 80 % | production: 100 % (1 of 1) |
+| K4 Weekly active seats | distinct users asking in an ISO week ÷ 18 seats | ≥ 70 % | production: 1 seat, the author |
 
-Staging figures prove that the events arrive (KQL, 2026-11-01: `QuestionAsked` 6, `AnswerDelivered` 6, `AnswerAccepted` 2,
-`FeedbackGiven` 1); they say nothing about the firm's use.
+Production figures were read on 2026-11-04 with the workbook's queries over 30 days, which hold everything since v1.0.0
+(2026-11-03). They are the author's test traffic, as are the staging figures (KQL, 2026-11-01: `QuestionAsked` 6,
+`AnswerDelivered` 6, `AnswerAccepted` 2, `FeedbackGiven` 1): they prove that the events arrive and say nothing about the firm's use.
 
 ## Repo card
 
@@ -151,7 +153,8 @@ A merge builds one image, deploys it to staging by digest and uploads the digest
 requires the `load-test` status on it unless only the web, docs or workflows changed (ADR-015), deploys it as a new revision,
 smoke-tests it on the `canary` label, sends it 10 % of traffic for twelve minutes, reads its requests and 5xx from the Container
 Apps `Requests` metric of that revision, and moves to 100 % or rolls back. The p95 of one revision is not measured yet (known
-limitation). Rollback by revision takes seconds; commands in [docs/OPERATIONS.md](docs/OPERATIONS.md).
+limitation). Rollback by revision took 47 s back and 21 s forward in a production rehearsal (2026-11-03), and a planned redeploy
+of an earlier release 17 min 16 s with approval and canary; commands and times in [docs/OPERATIONS.md](docs/OPERATIONS.md).
 
 **Load test** (`load-test.yml`, 2026-11-03, run 41661582947, on the release commit and the digest now in production): Locust 2.47.0
 against a staging revision with a model double, then the real model on the warm stable revision. Percentiles are Locust's,
@@ -169,11 +172,15 @@ At most 2 replicas, 0.51 vCPU and 0.52 GiB over the run. The earlier pass of 202
 same app code: p95 12.0 s on 45 asks) and the failed runs are in [OPERATIONS.md](docs/OPERATIONS.md#load-tests).
 
 **SLOs** (production from v1.0.0): availability ≥ 99.7 %, p95 < 13 s, 5xx < 1 %, ≤ 0.05 € per question all-in; RTO 4 h (drill:
-12 min 17 s) and RPO 15 min.
+12 min 17 s) and RPO 15 min. First production reading, 2026-11-04 over 30 days, test traffic: availability 100 % of 94 `/api`
+requests, 5xx 0, p95 of the ask route 16.9 s on 9 asks (the slowest of the nine, the first question of 2026-11-03, after an
+`AnalystRetried`; 8 of 9 under 15 s), 0.0049 € a turn as the app measures it. Nine asks are too few for a p95; the SLA-02
+evidence stays the load test.
 
-**DORA, 2026-11-01 to 2026-11-03:** staging: 11 `deploy.yml` runs with a result, 9 successful; lead time 5 to 8 minutes from merge
-to staging; change failure rate 2 of 11; time to restore 34 and 17 minutes. Production: 1 release (v1.0.0), 8 minutes from tag to
-production and 2 h 46 min from merge, the load test included; change failure rate 0 of 1.
+**DORA, 2026-11-01 to 2026-11-03:** staging: 15 `deploy.yml` runs with a result, 13 successful; lead time 5 to 8 minutes from merge
+to staging; change failure rate 2 of 15; time to restore 34 and 17 minutes. Production: 2 releases, v1.0.0 (8 minutes from tag to
+production, 2 h 46 min from merge, the load test included) and v1.0.1 (18 minutes from tag, 33 minutes from merge); change
+failure rate 0 of 2; no incident, and a rehearsed time to restore of 47 s by revision.
 
 ## Cost
 
