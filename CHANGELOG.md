@@ -7,10 +7,33 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ## [Unreleased]
 
+## [1.0.2] - unreleased
+
+A documentation patch after 1.0.1: the post-release evidence of 1.0.1 and the evaluation runner's fix. The image is rebuilt from
+the same `app/` code. The runner (`eval/`) is not part of the image but sits outside ADR-015's exemption, so this release
+requires a load test on its commit.
+
 ### Changed
 
 - The evaluation runner runs two cases at a time instead of four and retries a throttled case after 30, 60 and 120 seconds.
   Two full runs on `main` reached the shared deployment's 100K tokens per minute on their own and failed only on `errors`.
+- `docs/evaluation.md`, README and `docs/RESPONSIBLE_AI.md`: the full suite on `main` of 2026-11-03 (run 41719593012, the same
+  `app/` as 1.0.1) passed: recall@5 0.917, citation precision 1.000, version accuracy 1.000, correct refusal 1.000, false
+  refusal 0.040 (3 of 75, against 0.027 before), canary 0 of 15, groundedness 0.991, answer language 0.975.
+- `docs/OPERATIONS.md` and README, DORA: v1.0.1 reached production 18 minutes after its tag and 33 after its merge, with
+  approval and canary; change failure rate 0 of 2 releases; the two rollback dispatches and the staging drill's runs.
+- `docs/OPERATIONS.md`, rollback: the times rehearsed on 2026-11-03. By revision, 47 s back and 21 s forward; a planned
+  redeploy, 5 min 26 s and 4 min 21 s in staging and 17 min 16 s each way in production, approval and canary included.
+- `docs/OPERATIONS.md`, alerts: the production test notification and the latency alert that fired at 22:52 UTC on 2026-11-03.
+- README: the first production KPIs and SLO readings (2026-11-04, 30 days, test traffic): K1 370.1 min on 1 turn, K2 8 of 8,
+  K3 1 of 1, K4 1 seat; availability 100 % of 94 `/api` requests, p95 of the ask route 16.9 s on 9 asks.
+
+### Known limitations
+
+- Staging telemetry gap on 2026-11-03: the daily cap of 0.3 GB, restored by `deploy.yml` at 19:30 UTC on a day already past it,
+  stopped ingestion after the 18:00 UTC hour until the 00:00 UTC reset, so the staging alert drill could not fire
+  (`docs/OPERATIONS.md`).
+- The limitations of 1.0.1 are unchanged; they wait for the next release with a load test.
 
 ## [1.0.1] - 2026-11-03
 
@@ -120,6 +143,7 @@ created by this release after the author's approval.
   The released commit carries its own `load-test` status, the exact p95 of about 90 real-model asks, which `release.yml` checks.
 - Restore drill: 12 min 17 s from the decision to readable data, against a 4 h RTO.
 
-[Unreleased]: https://github.com/Rodrigo-GomezdelMoral/product-legal-juriscope/compare/v1.0.1...HEAD
+[Unreleased]: https://github.com/Rodrigo-GomezdelMoral/product-legal-juriscope/compare/v1.0.2...HEAD
+[1.0.2]: https://github.com/Rodrigo-GomezdelMoral/product-legal-juriscope/compare/v1.0.1...v1.0.2
 [1.0.1]: https://github.com/Rodrigo-GomezdelMoral/product-legal-juriscope/compare/v1.0.0...v1.0.1
 [1.0.0]: https://github.com/Rodrigo-GomezdelMoral/product-legal-juriscope/releases/tag/v1.0.0

@@ -58,7 +58,7 @@ the cases it applies to, and its value is the share of those cases where the che
   retry is logged to standard error with the cause and the wait. At four cases at a time a full run reached the deployment's
   100K tokens per minute on its own (about 500K prompt tokens in five minutes on 2026-11-03), and two full runs on `main` failed
   only on `errors` (5 and 6 cases rejected with 429 after every retry, every quality metric passing). Two at a time halves the
-  peak and doubles the run to about 20 minutes. It still throttles other callers of the shared deployment while it runs:
+  peak; the first full run at two, on 2026-11-03, took about 12 minutes in Actions (see the last section). It still throttles other callers of the shared deployment while it runs:
   start it when no other load test is running.
 - **Errors in the report** are one line each, at most 200 characters, with host names replaced by `<host>`. The pull-request
   comment and the artifacts of a public repository are public.
@@ -236,3 +236,33 @@ UTC), measured against the verified golden set with the judge reading the restat
   citation precision 1.000 (6), canary 0 of 15, groundedness 0.971 (17).
 - **Baselines compare like with like:** a local run on `jur-articles-local` against the `analyst_v5` column above, and a manual
   `eval.yml` run on `jur-articles-stg` against this column.
+
+## Full suite on `main`, 2026-11-03 (release 1.0.1)
+
+`eval.yml` run 41719593012, a manual full run on `main` at `b99066c`, finished at 21:23 UTC: the same `app/` code as v1.0.1, the
+same prompts and model (`gpt-5-mini`, reasoning effort `low`) and the index `jur-articles-stg`, with the runner at two cases at a
+time. It passed every threshold:
+
+| Metric | Threshold | Run 41719593012, 2026-11-03 21:23 | Staging index, 2026-11-01 (above) |
+|---|---|---|---|
+| Cases (golden, versions, unanswerable, adversarial) | | 60, 15, 20, 15 | 60, 15, 20, 15 |
+| `errors` | 0 | 0 | 0 |
+| `recall_at_5` | ≥ 0.85 | 0.917 (60) | 0.917 (60) |
+| `citation_precision` | ≥ 0.95 | 1.000 (57) | 1.000 (58) |
+| `groundedness` | ≥ 0.90 | 0.991 (81) | 0.994 (82) |
+| `version_accuracy` | ≥ 0.90 | 1.000 (15) | 1.000 (15) |
+| `correct_refusal` | ≥ 0.90 | 1.000 (20) | 1.000 (20) |
+| `false_refusal` | ≤ 0.05 | 0.040 (75) | 0.027 (75) |
+| `canary_appearances` | 0 | 0 of 15 | 0 of 15 |
+| `answer_language` | reported | 0.975 (81) | 0.988 (82) |
+| Seconds per question, p50 and p95 | | 7.9, 13.0 | 8.4, 12.3 |
+| Median cost of an answer | | 0.0049 € | 0.0049 € |
+
+- **False refusal rises from 2 to 3 of 75,** within the 0.05 line: the intimate-images question
+  ([RESPONSIBLE_AI.md](RESPONSIBLE_AI.md)), plus one on trafficking in human beings and one on sexual harassment. The report
+  does not record why those two were refused.
+- **Five golden questions missed recall@5** (assault on a partner without injury, intimate images, aggravated fraud, Social
+  Security fraud, attempt), as many as on 2026-11-01 (0.917 both times).
+- **Two earlier full runs on `main` (runs 41709434309 and 41712321063, on `4171dbc`) failed only on `errors`,** throttled by the
+  shared deployment at four cases at a time; the runner change above fixed it. This run is the evaluation of record for v1.0.1's
+  application code.

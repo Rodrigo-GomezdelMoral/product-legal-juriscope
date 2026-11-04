@@ -66,7 +66,8 @@ every *Must*, the first feedback and the deletion of all of a user's conversatio
     researching those offences must read the articles in the BOE directly. Lowering the threshold would change a shared
     guardrail, so it stays as it is.
   - **The same filter refuses a question on sharing intimate images without consent** (article 197.7), in every phase 3 run. It
-    is the one false refusal of the golden set.
+    was the one false refusal of the golden set until the full suite of 2026-11-03, which refused it and two other answerable
+    questions (3 of 75, within the 0.05 line; [evaluation.md](evaluation.md)).
   - **Model retirement:** `gpt-5-mini` 2025-08-07 retires on 2027-07-13 (Models API and Learn, read 2026-11-03;
     [ADR-010](adr/010-model-lifecycle.md)). The replacement is expected between about 2027-03-15 and 2027-04-14 and must pass
     the full suite before it reaches production.
