@@ -57,6 +57,9 @@ Staging figures were measured in phase 7 (2026-11-01, times in UTC); figures mar
      `az containerapp revision deactivate -n $P -g $G --revision $P--<current>`.
   The `canary` label stays on the current revision until the next deployment, which rewrites the traffic list. Going forward
   again is the same four steps with the names swapped.
+  *Rehearsed in production on 2026-11-03 at 21:32 UTC* (`v1-0-1` to `v1-0-0` and back): the previous revision was healthy 30 s
+  after its activation; back in 47 s to `/healthz` 200, forward in 21 s. The `Requests` metric by revision read 21 for `v1-0-0`
+  and 0 for `v1-0-1` while rolled back, then 0 and 21. A first rehearsal at 20:28 UTC went back in 58 s.
 - **Rollback, planned path (a full redeploy of an earlier release):**
   - staging: `gh workflow run deploy.yml --ref main -f digest=<previous digest>`, then the same with the current digest. Such a
     run uploads its digest as the artifact of `main`'s latest commit, and `release.yml` takes the latest successful run's
@@ -65,6 +68,10 @@ Staging figures were measured in phase 7 (2026-11-01, times in UTC); figures mar
     from the ref and deploys the input tag's digest and Bicep as revision `v<major>-<minor>-<patch>-r<run number>`, behind the
     same canary. The ref must be `v1.0.1` or later: earlier tags hold a workflow that reuses the existing revision's suffix, which
     Container Apps rejects. The target commit's `image-<sha>` artifact must still exist (90 days, ADR-012).
+  - *Rehearsed on 2026-11-03,* timed from the dispatch to the end of the run. Staging: `deploy.yml` runs 41724016259 (v1.0.0's
+    digest, 5 min 26 s) and 41724831402 (v1.0.1's again, 4 min 21 s). Production: `release.yml` runs 41725584657
+    (`-f tag=v1.0.0`, revision `v1-0-0-r3`) and 41728213703 (v1.0.1 again, revision `v1-0-1-r4`), 17 min 16 s each way, the
+    approval and the twelve-minute canary included; both canaries had 2 requests, 0 with 5xx.
 - **Urgent patch (OE:11):** the same path, pre-approved: `feature/hotfix-<what>`, PR with the required checks, merge, staging, load
   test, `vX.Y.Z+1`.
 - **Client secret rotation** (the sign-in apps' secrets expire on 2027-11-01, staging, and 2027-11-03, production; rotate in
@@ -86,6 +93,11 @@ Staging figures were measured in phase 7 (2026-11-01, times in UTC); figures mar
 Each alert goes to its environment's action group `ag-juriscope-<env>-swc`, which e-mails `ALERT_EMAIL_ADDRESS`. Staging declares the
 same rules disabled, so that an enabled log rule never bills there (checked deployed on 2026-11-01: the three rules exist,
 disabled). Application Insights adds a *Failure Anomalies* smart detector by itself; it is free and not in Bicep.
+
+Production, 2026-11-03: the action group's test notification was delivered and its e-mail received (22:29 UTC), and
+`alert-juriscope-prod-latency` fired for real at 22:52 UTC, when the hour of the walk-through had 6 asks with a p95 of 13.76 s,
+and resolved at 00:23 UTC. A staging drill of the same rule could not fire (see *Load tests*); its temporary rule and action
+group are deleted.
 
 **Known limitation: in-stream failures are not counted as unavailable** (measured 2026-11-03, release 1.0.1). The availability
 tile and alert count `toint(resultCode) >= 500`. The ask route streams, so a turn that fails after the stream started ends with an
@@ -213,6 +225,12 @@ ask does. Run a load test that may need diagnosis as the first of its UTC day, a
 spans. On 2026-11-03 the staging cap was found at 2.0 GB, set by hand after the 13:49 UTC deploy and outside Bicep. The next
 `deploy.yml` sets it back to 0.3 GB (its `what-if` deploys `pricingPlans/current`); the author's housekeeping script checks it.
 
+**Known limitation: staging telemetry gap on 2026-11-03** (read 2026-11-04). Staging Application Insights holds nothing after the
+18:00 UTC hour of 2026-11-03, although the console logs show the alert drill's question answered with 200 between 22:30 and
+22:35 UTC. `deploy.yml` restored the daily cap to 0.3 GB at 19:30 UTC on a day that had already ingested more (the stress
+ramps), so ingestion stopped until the 00:00 UTC reset. That, not the rule, is why the staging alert drill could not fire. The
+rule above applies to anything that needs staging telemetry after a cap change on a busy day: run it first in its UTC day.
+
 ## DORA
 
 Read from the Actions runs with `gh run list --workflow deploy.yml` and `--workflow release.yml`, with dates:
@@ -224,8 +242,8 @@ Read from the Actions runs with `gh run list --workflow deploy.yml` and `--workf
 | Window | Deployment frequency | Lead time | Change failure rate | Time to restore |
 |---|---|---|---|---|
 | Staging, 2026-11-01 | 3 `deploy.yml` runs with a result, 2 successful (one commit, `c074a7e`) | PR #10: 5 min from merge (12:06) to staging (12:11), 12 min from opening | 1 of 3 (11:37, the Layout skill rejected in Spain Central) | 34 min, restored by PR #10 |
-| Staging, 2026-11-01 to 2026-11-03 | 11 `deploy.yml` runs with a result, 9 successful | 5 to 8 min from merge to staging (PRs #10 to #18) | 2 of 11 (11-01 11:37, the Layout skill; 11-02 19:42, the runner's managed identity endpoint) | 34 min and 17 min |
-| Production, 2026-11-03 | 1 release (v1.0.0, `release.yml` succeeded, approval recorded) | 8 min from tag (16:28) to production (16:36); 2 h 46 min from merge (13:49), the load test included | 0 of 1 | n/a |
+| Staging, 2026-11-01 to 2026-11-03 | 15 `deploy.yml` runs with a result, 13 successful (2 of them the rollback drill's dispatches, 21:41 and 21:46 on 11-03) | 5 to 8 min from merge to staging (PRs #10 to #19 and #24) | 2 of 15 (11-01 11:37, the Layout skill; 11-02 19:42, the runner's managed identity endpoint) | 34 min and 17 min |
+| Production, 2026-11-03 | 2 releases (v1.0.0 and v1.0.1, `release.yml` succeeded, approval recorded) and 2 rollback dispatches rehearsed (runs 41725584657 and 41728213703, both successful) | v1.0.0: 8 min from tag (16:28) to production (16:36), 2 h 46 min from merge (13:49), the load test included. v1.0.1: 18 min from tag (19:45) to production (20:03), 33 min from merge (19:30), the approval and the canary included | 0 of 2 releases | no incident; rehearsed: 47 s by revision, 17 min 16 s by a planned redeploy |
 
 ## Switching on and off
 
