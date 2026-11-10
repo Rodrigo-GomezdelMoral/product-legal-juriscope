@@ -4,11 +4,11 @@ Juriscope's impact assessment follows the sections of the
 [Microsoft Responsible AI Impact Assessment Template](https://msblogs.thesourcemediaassets.com/sites/5/2022/06/Microsoft-RAI-Impact-Assessment-Template.pdf)
 (June 2022) and the responsible AI guidance of the
 [Well-Architected AI workload guide](https://learn.microsoft.com/azure/well-architected/ai/responsible-ai). Measured figures carry
-their date and come from [evaluation.md](evaluation.md). **Status, 2026-11-03 (release 1.0.1):** everything below runs in
+their date and come from [evaluation.md](evaluation.md). **Status, 2026-11-09 (release 1.0.2):** everything below runs in
 staging since 2026-11-01 and in production since release 1.0.0 (2026-11-03). Production evidence so far is the author's sign-in
 check of 2026-11-03 (three answered questions, both versions side by side, the user's name and role shown); the walk-through of
-every *Must*, the first feedback and the deletion of all of a user's conversations follow release 1.0.1
-([OPERATIONS.md](OPERATIONS.md)).
+every *Must*, the first feedback and the deletion of all of a user's conversations followed release 1.0.1, and the demo was
+recorded on release 1.0.2 on 2026-11-09, the same application code ([OPERATIONS.md](OPERATIONS.md)).
 
 ## 1. System information
 

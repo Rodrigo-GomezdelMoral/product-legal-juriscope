@@ -7,7 +7,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ## [Unreleased]
 
-## [1.0.2] - unreleased
+## [1.0.2] - 2026-11-09
 
 A documentation patch after 1.0.1: the post-release evidence of 1.0.1 and the evaluation runner's fix. The image is rebuilt from
 the same `app/` code. The runner (`eval/`) is not part of the image but sits outside ADR-015's exemption, so this release

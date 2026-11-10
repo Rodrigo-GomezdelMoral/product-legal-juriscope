@@ -237,9 +237,9 @@ UTC), measured against the verified golden set with the judge reading the restat
 - **Baselines compare like with like:** a local run on `jur-articles-local` against the `analyst_v5` column above, and a manual
   `eval.yml` run on `jur-articles-stg` against this column.
 
-## Full suite on `main`, 2026-11-03 (release 1.0.1)
+## Full suite on `main`, 2026-11-03 (releases 1.0.1 and 1.0.2)
 
-`eval.yml` run 41719593012, a manual full run on `main` at `b99066c`, finished at 21:23 UTC: the same `app/` code as v1.0.1, the
+`eval.yml` run 41719593012, a manual full run on `main` at `b99066c`, finished at 21:23 UTC: the same `app/` code as v1.0.1 and v1.0.2, the
 same prompts and model (`gpt-5-mini`, reasoning effort `low`) and the index `jur-articles-stg`, with the runner at two cases at a
 time. It passed every threshold:
 
@@ -264,5 +264,5 @@ time. It passed every threshold:
 - **Five golden questions missed recall@5** (assault on a partner without injury, intimate images, aggravated fraud, Social
   Security fraud, attempt), as many as on 2026-11-01 (0.917 both times).
 - **Two earlier full runs on `main` (runs 41709434309 and 41712321063, on `4171dbc`) failed only on `errors`,** throttled by the
-  shared deployment at four cases at a time; the runner change above fixed it. This run is the evaluation of record for v1.0.1's
-  application code.
+  shared deployment at four cases at a time; the runner change above fixed it. This run is the evaluation of record for the
+  application code of v1.0.1 and v1.0.2, which share `app/`.
