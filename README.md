@@ -1,19 +1,21 @@
-# <img src="docs/images/brand/juriscope-logo.svg" alt="Juriscope" height="48">
+# <picture><source media="(prefers-color-scheme: dark)" srcset="docs/images/brand/juriscope-logo-white.png"><img src="docs/images/brand/juriscope-logo.png" alt="Juriscope" height="48"></picture>
 
 Built by **Rodrigo Martín Gómez del Moral Herranz**
 
 <a href="https://github.com/Rodrigo-GomezdelMoral"><img src="docs/images/author/github.png" alt="GitHub" height="36"></a>&nbsp;&nbsp;<a href="https://www.linkedin.com/in/rodrigo-mart%C3%ADn-g%C3%B3mez-del-moral-herranz"><img src="docs/images/author/linkedin.png" alt="LinkedIn" height="36"></a>&nbsp;&nbsp;<a href="https://rodrigogomezdelmoralherranz.es"><img src="docs/images/author/portfolio.png" alt="Portfolio" height="36"></a>
 
-Cited answers on the Spanish Criminal Code, with the full article and the version in force. A criminal-law firm's lawyers spend
-about 80 minutes on each research question, and the costly mistake is citing a wording that was not in force on the date of the
-facts. Juriscope answers in about 9 seconds (median 8.6 s, p95 12.8 s in staging on the released image, 2026-11-03), every claim
-cites the article it rests on, and
-it refuses when the Code does not support an answer.
+Juriscope is an AI research assistant on Azure for criminal-law firms: it answers questions on the Spanish Criminal Code with every
+claim cited, the full article and the wording in force on the date of the facts, and it refuses when the Code does not support an
+answer. A firm's lawyers spend about 80 minutes on each research question, and the costly mistake is citing a wording that was not
+in force then. Juriscope answers in about 8 seconds (median 7.6 s; 95 % within 11.3 s on 100 answers in the load test of release
+v1.0.2, 2026-11-09), and the lawyer's estimated time per question falls from 50 to 115 minutes to 25 to 50.
 
-**Try it:** [the published demo](https://rodrigo-gomezdelmoral.github.io/product-legal-juriscope/) replays five runs recorded from
-the deployed system on 2026-11-03, and an evidence panel with the evaluation gate and the sign-in boundary.
+**Live demo:** <https://rodrigo-gomezdelmoral.github.io/product-legal-juriscope/> - five runs recorded from the deployed system on 2026-11-03, replayed with their real timings and no backend, and an evidence panel.
 
-<img src="docs/images/web/answer-two-versions.png" alt="Juriscope answering what article 139 said about murder in May 2014: the answer cites article 139, and its card shows the 1996 wording that applied on 2014-05-15 beside the 2015 wording in force today, each with its BOE reference" width="100%">
+Production, 2026-11-09: asked what article 139 said in May 2014, Juriscope cites it and shows the wording that applied then
+beside the one in force today.
+
+![Juriscope in production answering what article 139 said about murder in May 2014: the answer cites article 139, and its card shows the 1996 wording that applied on 2014-05-15 beside the 2015 wording in force today, each with its BOE reference](docs/images/answer-two-versions.png)
 
 ## The problem
 
@@ -24,15 +26,17 @@ Time is not the expensive part. The Criminal Code has been amended many times si
 the one in force when the facts happened, not the one on the screen today. Today that check depends on each lawyer's diligence.
 
 **The process today (as-is):** a lawyer delimits the question (5 to 10 min), lists the possible offences and articles (5 to 15),
-finds them in the BOE or a database (5 to 10), reads the whole articles (5 to 15), checks every amendment for the wording in force on
+finds them in the BOE (Spain's Official State Gazette) or a database (5 to 10), reads the whole articles (5 to 15), checks every amendment for the wording in force on
 the date of the facts (5 to 15), reads related articles (10 to 20), drafts a note (10 to 20) and reviews it (5 to 10).
+
+![The process today in BPMN: the client sends a question; one lawyer delimits it, identifies offences and articles, finds the provisions in the BOE, reads the full articles, checks the amendments for the version in force, reads related articles, drafts a note and reviews it, 50 to 115 minutes per question, with the wording in force on the facts date resting on each lawyer](docs/images/process-as-is.png)
 
 **What the firm buys:** every claim cited to an article with a link to the official text, the whole article verbatim, the version that
 applies with its amending law, an explicit refusal when the Code is silent, and a safe way to change prompts and models.
 
 ## What it does
 
-- **Cites every claim.** Each statement carries a numbered citation to an article that was retrieved for the question; code drops
+- **Cites every claim.** Each statement carries a numbered citation to an article that was retrieved for the question; the application drops
   any claim whose citation was not retrieved, so the model cannot cite an article it did not read.
 - **Shows the whole article, in the right version.** The article text comes from the official version store, never from the model.
   When the question gives a date of the facts, the card shows the wording that applied beside today's.
@@ -42,52 +46,62 @@ applies with its amending law, an explicit refusal when the Code is silent, and 
   90 days.
 - **Changes safely.** Every change to prompts, agents or models passes an evaluation gate on the pull request.
 
+![The process with Juriscope in BPMN: the lawyer delimits the question and asks it; Juriscope analyses it, searches the Code, rebuilds whole articles in the version that applies and drafts and verifies cited claims in under 15 s for 95 % of answers, or ends in a refusal; the lawyer reads the cited answer, drafts the note and reviews it, 25 to 50 minutes per question](docs/images/process-to-be.png)
+
 **The process with Juriscope (to-be):** the lawyer delimits the question and asks it. Juriscope does the machine part of steps 2 to
-6 in seconds: *Analyst* extracts the concepts, the Spanish queries and the date of the facts; hybrid and semantic search finds the
-articles; the version store rebuilds them whole in the right version; *Counsel* drafts cited claims; code verifies them. The lawyer
-reads the answer and the articles (5 to 10 min), drafts and reviews. The total falls from 50 to 115 minutes to 25 to 50, about 146
-to 379 lawyer-hours a month (estimates; K1 measures the real value).
+6 in seconds: the *Analyst* agent extracts the concepts, the Spanish queries and the date of the facts; hybrid and semantic search
+finds the articles; the version store rebuilds them whole in the right version; the *Counsel* agent drafts cited claims; application
+code verifies them. The lawyer reads the answer and the articles (5 to 10 min), drafts and reviews. The total falls from 50 to 115
+minutes to 25 to 50, saving about 146 to 379 lawyer-hours a month (estimates; K1 measures the real value).
 
 ## Requirements
 
 Eleven requirements and two SLAs, defined with *Given/When/Then* criteria in [docs/PRODUCT.md](docs/PRODUCT.md). Every *Must* has
 a test, live evidence in staging and a recorded run or evidence in the demo.
 
-| ID | Must | Test | Live evidence (staging) | Demo |
-|---|---|---|---|---|
-| REQ-01 | Every claim cites its article, linked to boe.es | `test_claims_cite_retrieved_articles` | citation precision 1.000 on 57 cases (2026-11-03) | S1 |
-| REQ-02 | The whole article, not a fragment | `test_full_article`, `test_answer_carries_full_articles` | *Show full article* in the browser (2026-11-01) | S1 |
-| REQ-03 | The version that applies | `test_version_at`, `test_facts_date_selects_version` | version accuracy 1.000 on 15 cases (2026-11-03); 2014 and 2015 wordings side by side | S2 |
-| REQ-04 | An explicit refusal | `test_out_of_scope_refused_without_retrieval`, `test_no_evidence_refusal` | correct refusal 1.000 on 20 cases, false refusal 0.040 on 75 (2026-11-03) | S3 |
-| REQ-05 | An evaluation gate on every change | `eval/run.py` exit code | `eval.yml` passed on PRs #19 and #24, and the full suite on `main` (run 41719593012, 2026-11-03) | evidence panel |
-| REQ-06 | Saved conversations: list, resume, delete | `test_resume`, `test_delete` | follow-up, reload, resume and delete in the browser (2026-11-01) | S4 |
-| REQ-07 | Only signed-in members with the role, each seeing their own | `test_401`, `test_403`, `test_404_other_user` | 401 without a session and with a forged header, 404 for another id (2026-11-03) | evidence panel |
+![Requirements board: the nine Must items met (cited claims, full article, applicable version, refusal, evaluation gate, saved conversations, members only, answer time 11.3 s against 15 s, availability 100 % against 99.5 %), the three Should items met (see also, feedback, retention) and the Could item met (answer language)](docs/images/requirements.png)
+
+The board's take numbers refer to the recorded demo video. In the table, S1 to S5 are the five runs the live demo replays, and
+*evidence panel* is the live demo's evidence page.
+
+| ID | Must | Status | Test | Live evidence (staging) | Demo |
+|---|---|---|---|---|---|
+| REQ-01 | Every claim cites its article, linked to boe.es | met | `test_claims_cite_retrieved_articles` | citation precision 1.000 on 57 cases (2026-11-03) | S1 |
+| REQ-02 | The whole article, not a fragment | met | `test_full_article`, `test_answer_carries_full_articles` | *Show full article* in the browser (2026-11-01) | S1 |
+| REQ-03 | The version that applies | met | `test_version_at`, `test_facts_date_selects_version` | version accuracy 1.000 on 15 cases (2026-11-03); 2014 and 2015 wordings side by side | S2 |
+| REQ-04 | An explicit refusal | met | `test_out_of_scope_refused_without_retrieval`, `test_no_evidence_refusal` | correct refusal 1.000 on 20 cases, false refusal 0.040 on 75 (2026-11-03) | S3 |
+| REQ-05 | An evaluation gate on every change | met | `eval/run.py` exit code | `eval.yml` passed on PRs #19 and #24, and the full suite on `main` (run 41719593012, 2026-11-03) | evidence panel |
+| REQ-06 | Saved conversations: list, resume, delete | met | `test_resume`, `test_delete` | follow-up, reload, resume and delete in the browser (2026-11-01) | S4 |
+| REQ-07 | Only signed-in members with the role, each seeing their own | met | `test_401`, `test_403`, `test_404_other_user` | 401 without a session and with a forged header, 404 for another id (2026-11-03) | evidence panel |
 
 The *Should* and *Could* requirements: "See also" references (REQ-08, S1), 👍/👎 feeding K3 (REQ-09, `FeedbackGiven` seen in KQL),
-a 90-day TTL on both containers (REQ-10, read on the deployed account), and answers in the language of the question (REQ-11,
+a 90-day TTL on both Cosmos DB containers (REQ-10, read on the deployed account), and answers in the language of the question (REQ-11,
 answer language 0.975 on 81 cases on 2026-11-03, S5).
-The evaluation figures dated 2026-11-03 are the full suite on `main`, the same `app/` as v1.0.1 ([docs/evaluation.md](docs/evaluation.md)).
+The evaluation figures dated 2026-11-03 are the full suite on `main`, the same `app/` as v1.0.1 and v1.0.2 ([docs/evaluation.md](docs/evaluation.md)).
 
 | SLA | Committed | Measured |
 |---|---|---|
-| SLA-01 availability | ≥ 99.5 % a month | production since v1.0.0 (2026-11-03); first reading, 2026-11-04 over 30 days: 100 % of 94 `/api` requests (test traffic), the monthly window not yet measurable; measured by the workbook, which does not yet count a question that fails after its stream has started (known limitation, [OPERATIONS.md](docs/OPERATIONS.md#alerts)) |
-| SLA-02 latency | 95 % of answers under 15 s, progress within 0.1 s | exact p95 12.8 s (12,784 ms) on 96 real-model answers, 0 failed, on the image in production (`load-test.yml` run 41661582947, 2026-11-03); progress in 10 to 27 ms (browser, 2026-11-01) |
+| SLA-01 availability | ≥ 99.5 % a month | production since v1.0.0 (2026-11-03), read on 2026-11-10 over 30 days: 100 % of 262 `/api` requests, none with a 5xx (test traffic); a full calendar month is not yet measurable; the workbook does not yet count a question that fails after its stream has started (known limitation, [OPERATIONS.md](docs/OPERATIONS.md#alerts)) |
+| SLA-02 latency | 95 % of answers under 15 s, progress within 0.1 s | exact p95 11.3 s (11,337 ms) on 100 real-model answers, 0 failed, on the container image now in production (`load-test.yml` run 42687323423, 2026-11-09); in production, 49 of 51 asks under 15 s (30 days to 2026-11-10, test traffic); progress in 10 to 27 ms (browser, 2026-11-01) |
 
 ## KPIs
 
 Computed from custom events in Application Insights, without question or answer text, and shown in the KPI workbook declared in
 Bicep.
 
-| KPI | Formula | Target | Measured |
-|---|---|---|---|
-| K1 Time to accepted answer | median minutes from `QuestionAsked` to the first copy or 👍 | ≤ 10 min | production: 370.1 min on 1 turn, a copy made in the walk-through of an answer asked about six hours earlier (today: 30 to 75 min for steps 2 to 6) |
-| K2 Grounded first draft | answered turns with no claim dropped ÷ answered turns | ≥ 95 % | production: 100 % (8 of 8 answered turns); staging, 2026-11-01: 5 of 5 |
-| K3 Helpful answers | 👍 ÷ (👍 + 👎) | ≥ 80 % | production: 100 % (1 of 1) |
-| K4 Weekly active seats | distinct users asking in an ISO week ÷ 18 seats | ≥ 70 % | production: 1 seat, the author |
+![KPI board, production on 2026-11-10: accepted answer 0.2 min against 10 min, grounded drafts 100 % against 95 %, positive feedback 86 % against 80 %, all met; active seats 6 % against 70 %, missed](docs/images/kpis.png)
 
-Production figures were read on 2026-11-04 with the workbook's queries over 30 days, which hold everything since v1.0.0
-(2026-11-03). They are the author's test traffic, as are the staging figures (KQL, 2026-11-01: `QuestionAsked` 6,
-`AnswerDelivered` 6, `AnswerAccepted` 2, `FeedbackGiven` 1): they prove that the events arrive and say nothing about the firm's use.
+| KPI | Formula | Target | Measured (production, 30 days to 2026-11-10) |
+|---|---|---|---|
+| K1 Time to accepted answer | median minutes from `QuestionAsked` to the first copy or 👍 | ≤ 10 min | 0.2 min, on the 12 accepted turns (today: 30 to 75 min for steps 2 to 6) |
+| K2 Grounded first draft | answered turns with no claim dropped ÷ answered turns | ≥ 95 % | 100 % (40 of 40 answered turns) |
+| K3 Helpful answers | 👍 ÷ (👍 + 👎) | ≥ 80 % | 85.7 % (12 of 14 votes) |
+| K4 Weekly active seats | distinct users asking in an ISO week ÷ 18 seats | ≥ 70 % | 5.6 % (1 of 18 seats, the author): missed |
+
+Production figures were read on 2026-11-10 with the workbook's queries over 30 days, which hold everything since v1.0.0
+(2026-11-03): 51 questions, all test traffic from one account, the author's test user (the walk-through of 2026-11-03, rehearsals on 2026-11-04
+and the demo recording of 2026-11-09). They prove that the events arrive and say nothing about the firm's use: K4 is red because
+one person, not 18 seats, has used production so far.
 
 ## Repo card
 
@@ -95,103 +109,116 @@ Production figures were read on 2026-11-04 with the workbook's queries over 30 d
 |---|---|
 | **Type** | AI product for a criminal-law firm's lawyers and paralegals: research support on the Spanish Criminal Code |
 | **Client and users** | a fictional Madrid firm, 14 lawyers and 4 paralegals with the `Juriscope.User` role, and a knowledge lead who reads the workbook |
-| **Azure services** | per environment: Container Apps, Cosmos DB for NoSQL serverless, Storage, Key Vault, Application Insights, alerts and a budget. Shared: one Container Apps environment for both stages, and the shared base's Foundry models, AI Search, Container Registry and Log Analytics |
+| **Azure services** | per environment: Container Apps, Cosmos DB for NoSQL serverless, Storage, Key Vault, Application Insights, alerts and a budget. Shared by staging and production: one Container Apps environment. Shared platform, deployed separately: Foundry models, AI Search, Container Registry and Log Analytics |
 | **AI** | `gpt-5-mini` (2025-08-07) for *Analyst* and *Counsel*, `text-embedding-3-small`; Microsoft Agent Framework, a graph workflow exposed as an agent, self-hosted; hybrid and semantic search; verification in code |
-| **Stack** | Python 3.12, FastAPI, server-sent events; React 19 and TypeScript on the common chat interface; Bicep; Locust |
-| **Environments and delivery** | local with the Cosmos DB emulator; staging and production in Azure. One image per merge, deployed to staging by digest; a GitHub Release promotes the same digest to production with a 10 % canary and the author's approval; GitHub Actions with OIDC, no stored Azure secrets |
+| **Stack** | Python 3.12, FastAPI, server-sent events; a React 19 and TypeScript chat interface; Bicep; Locust |
+| **Environments and delivery** | local with the Cosmos DB emulator; staging and production in Azure. One container image per merge, deployed to staging by digest; a GitHub Release promotes the same digest to production with a 10 % canary and the author's approval; GitHub Actions with OIDC, no stored Azure secrets |
 | **Security** | Entra ID sign-in through Easy Auth with an app role, managed identities, local auth off on every data service, the only secret in Key Vault, no question text in telemetry, CodeQL, Dependabot and secret scanning |
-| **SLA** | 99.5 % availability (production from v1.0.0); 95 % of answers under 15 s, measured p95 12.8 s on the released image |
-| **Demo** | [rodrigo-gomezdelmoral.github.io/product-legal-juriscope](https://rodrigo-gomezdelmoral.github.io/product-legal-juriscope/) |
+| **SLA** | 99.5 % availability: 100 % of 262 `/api` requests in production (30 days to 2026-11-10, test traffic); 95 % of answers under 15 s: exact p95 11.3 s on the released container image (load test, 2026-11-09), and 49 of 51 production asks under 15 s |
+| **Demo** | <https://rodrigo-gomezdelmoral.github.io/product-legal-juriscope/> |
 
 ## Architecture
 
-```mermaid
-graph LR
-    U["Lawyer · browser"] -->|Entra sign-in · Easy Auth| CA["ca-juriscope-stg and -prod · FastAPI and web · France Central"]
-    CA --> AN["Analyst · gpt-5-mini"]
-    CA --> RT["retrieve · code"]
-    CA --> DR["Counsel · gpt-5-mini"]
-    CA --> VF["verify · code"]
-    RT --> SRCH[("shared AI Search · Spain Central")]
-    RT --> STORE[("version store · in the image")]
-    AN & DR --> FDRY["shared Foundry project · Sweden Central"]
-    CA --> COSMOS[("Cosmos DB · history and conversations")]
-    CA --> KV[("Key Vault · sign-in secret")]
-    CA --> APPI["Application Insights"]
-```
+![Lawyers sign in to the Juriscope container, API and web in one app, which reaches Cosmos DB, Blob Storage, Key Vault and Application Insights in its environment, and the shared platform's Foundry, AI Search, Registry and Log Analytics, with its managed identity](docs/images/architecture.png)
 
-The app runs in France Central, in the one Container Apps environment the product has (ADR-014); data stays in Sweden Central and
-the index of the public Code in Spain Central (ADR-009). The details are in [docs/architecture.md](docs/architecture.md).
+One container app serves the API and the web behind Entra ID sign-in ([ADR-006](docs/adr/006-sign-in-with-easy-auth.md)), and
+calls every service with its managed identity. The app runs in France Central, in the one Container Apps environment the product
+has ([ADR-014](docs/adr/014-one-container-apps-environment.md)); data stays in Sweden Central and the index of the public Code in
+Spain Central ([ADR-009](docs/adr/009-inference-and-data-residency.md)). The details are in [docs/architecture.md](docs/architecture.md).
+
+![The production resource group rg-juriscope-prod-swc in the Azure portal: Application Insights, the container app ca-juriscope-prod and the environment cae-juriscope-env in France Central, Cosmos DB, the failure anomalies alert rule, the managed identity, Key Vault and the storage account](docs/images/production-resource-group.png)
 
 ## How it works
 
-`POST /api/conversations/{id}/messages` runs a graph workflow (ADR-001): `analyze` can end in a refusal before any search; `retrieve`
-runs hybrid and semantic search and rebuilds whole articles in the version for the date of the facts; `draft` asks *Counsel* for
-structured claims; `verify` drops claims that cite articles not retrieved and refuses when none is left (ADR-005). The client sees
-one progress line per step, then one answer or one refusal (ADR-004). History lives in Cosmos DB through the framework's
-`CosmosHistoryProvider` (ADR-002).
+![The graph workflow: Analyst, then retrieval of whole articles, then Counsel, then claims verified in code, ending in a cited answer; out of scope, no evidence and unverified claims end in a refusal](docs/images/workflow.png)
+
+`POST /api/conversations/{id}/messages` runs a graph workflow ([ADR-001](docs/adr/001-graph-workflow.md)): `analyze` can end in a
+refusal before any search; `retrieve` runs hybrid and semantic search and rebuilds whole articles in the version for the date of the
+facts; `draft` asks *Counsel* for structured claims; `verify` drops claims that cite articles not retrieved and refuses when none is
+left ([ADR-005](docs/adr/005-structured-output-and-verification.md)). The client sees one progress line per step, then one answer or
+one refusal ([ADR-004](docs/adr/004-stream-progress-not-tokens.md)). History lives in Cosmos DB through the framework's
+`CosmosHistoryProvider` ([ADR-002](docs/adr/002-history-in-cosmos-db.md)).
+
+![The version store: the BOE consolidated text and each article's version history build a version store shipped in the container image; application code selects, for the facts date, the version in force then with its amending law, and shows the one in force today beside it](docs/images/versions.png)
+
+Search finds the chunks of the Code; the article text never comes from them. The application maps each chunk to its articles and
+rebuilds them, whole, from the BOE version store shipped in the container image, picking the wording in force on the date of the
+facts that the *Analyst* agent extracted, and shows today's wording beside it ([ADR-003](docs/adr/003-layout-index-and-version-store.md)).
 
 ## In action
 
-| | |
-|---|---|
-| <img src="docs/images/web/empty-state.png" alt="The empty state with the four suggested questions" width="100%"> | <img src="docs/images/web/refusal.png" alt="A question about Supreme Court case law answered with a refusal card that gives the reason and a suggestion" width="100%"> |
-| The empty state | A case-law question, refused on purpose |
+A question about Supreme Court case law, asked in production on 2026-11-09: Juriscope answers from the text of the Code, not from
+case law, so it refuses on purpose and says where to look. The published demo replays the same question, recorded on 2026-11-03
+(S3), and four other runs.
 
-<img src="docs/images/web/evidence.png" alt="The demo's evidence panel: the evaluation gate's table from pull request 16 and the recorded 401 and 404 responses" width="100%">
+![Juriscope in production refusing a question about what the Supreme Court has said on putative self-defence: the refusal card says it answers from the Criminal Code, not from case law, and suggests asking what the Code says and checking the case law in the firm's database](docs/images/refusal.png)
 
 ## Environments and releases
 
+![Environments: local code with the Cosmos DB emulator; a merge deploys the API to staging, which scales to zero; a load test and the author's approval gate the release to production, with a 10 % canary; the Container Apps environment, the registry with one image, AI Search and Foundry are shared](docs/images/environments.png)
+
 | | Staging | Production |
 |---|---|---|
-| App | `ca-juriscope-stg`, 0 to 2 replicas | `ca-juriscope-prod`, 1 warm replica (ADR-008), up to 4 |
+| App | `ca-juriscope-stg`, 0 to 2 replicas | `ca-juriscope-prod`, 1 warm replica ([ADR-008](docs/adr/008-production-warm-replica.md)), up to 4 |
 | Data | `cosmos-juriscope-stg-swc`, index `jur-articles-stg` | `cosmos-juriscope-prod-swc`, index `jur-articles-prod` |
 | Alerts | declared, disabled | 5xx, availability and p95; availability counts 5xx only, not a failure inside a started stream (known limitation) |
 | Changes by | every merge to `main` (`deploy.yml`) | a GitHub Release (`release.yml`), with approval |
 
-A merge builds one image, deploys it to staging by digest and uploads the digest. A release finds that digest for the tagged commit,
-requires the `load-test` status on it unless only the web, docs or workflows changed (ADR-015), deploys it as a new revision,
-smoke-tests it on the `canary` label, sends it 10 % of traffic for twelve minutes, reads its requests and 5xx from the Container
-Apps `Requests` metric of that revision, and moves to 100 % or rolls back. The p95 of one revision is not measured yet (known
-limitation). Rollback by revision took 47 s back and 21 s forward in a production rehearsal (2026-11-03), and a planned redeploy
-of an earlier release 17 min 16 s with approval and canary; commands and times in [docs/OPERATIONS.md](docs/OPERATIONS.md).
+A merge builds one container image, deploys it to staging by digest and uploads the digest. A release finds that digest for the tagged commit,
+requires the `load-test` status on it unless only the web, docs or workflows changed
+([ADR-015](docs/adr/015-release-without-load-test-for-web-and-docs.md)), deploys it as a new revision, smoke-tests it on the
+`canary` label, sends it 10 % of traffic for twelve minutes, reads its requests and 5xx from the Container Apps `Requests` metric of
+that revision, and moves to 100 % or rolls back. The p95 of one revision is not measured yet (known limitation). In a production
+rehearsal (2026-11-03), rolling back by revision took 47 s and rolling forward again 21 s; a planned redeploy of an earlier release
+took 17 min 16 s with approval and canary. Commands and times are in [docs/OPERATIONS.md](docs/OPERATIONS.md).
 
-**Load test** (`load-test.yml`, 2026-11-03, run 41661582947, on the release commit and the digest now in production): Locust 2.47.0
-against a staging revision with a model double, then the real model on the warm stable revision. Percentiles are Locust's,
-rounded to two significant digits, except the real-model p95, which is exact (ADR-017).
+![The load test: GitHub Actions runs Locust with up to 100 users against Juriscope in staging, which scales to 2 replicas, first on a model double and then on the real model; p95 11.3 s and 0 failures](docs/images/load-test.png)
+
+Up to 100 users run against a model double, a stand-in for the model; the SLA-02 stage then runs 3 users on the real model
+(p95 11.3 s). No stage had a failure.
+
+**Load test** (`load-test.yml` run 42687323423, 2026-11-09 19:51 to 20:41 UTC, on the v1.0.2 commit `dff9470` and the digest now
+in production): Locust 2.47.0 against a staging revision with a model double, then the real model on the warm stable revision.
+Rates and percentiles are for the ask route. Rates are Locust's; percentiles are Locust's approximations, except the real-model
+p95: Locust's column shows 12 s, and the exact p95 over the 100 asks is 11.3 s
+([ADR-017](docs/adr/017-exact-p95-and-a-longer-real-stage.md)).
 
 | Scenario | Users | Requests/s | p50 | p95 | p99 | Errors | Replicas |
 |---|---|---|---|---|---|---|---|
-| normal, model double | 5 | 0.42 | 1.0 s | 4.8 s | 4.8 s | 0 of 75 | ≤ 2 |
-| peak, model double | 20 | 1.61 | 1.4 s | 7.2 s | 7.4 s | 0 of 193 | ≤ 2 |
-| soak, model double | 5 | 0.45 | 0.99 s | 1.4 s | 1.8 s | 0 of 270 | ≤ 2 |
-| stress, model double | 5 to 100 | 3.26 | 2.7 s | 13 s | 20 s | 11 of 3,908 (0.28 %) | 2 |
-| **real model (SLA-02)** | 3 | 0.16 | 8.6 s | **12.8 s** | 22 s | 0 of 96 | ≤ 2 |
+| normal, model double | 5 | 0.46 | 1.0 s | 5.5 s | 5.5 s | 0 of 82 | ≤ 2 |
+| peak, model double | 20 | 1.67 | 1.3 s | 7.6 s | 7.9 s | 0 of 200 | ≤ 2 |
+| soak, model double | 5 | 0.45 | 0.97 s | 1.4 s | 2.0 s | 0 of 270 | ≤ 2 |
+| stress, model double | 5 to 100 | 3.34 | 2.7 s | 13 s | 23 s | 0 of 3,998 | ≤ 2 |
+| **real model (SLA-02)** | 3 | 0.17 | 7.6 s | **11.3 s** | 15 s | 0 of 100 | ≤ 2 |
 
-At most 2 replicas, 0.51 vCPU and 0.52 GiB over the run. The earlier pass of 2026-11-03 (run 41619345584, image of `298ea6a`, the
-same app code: p95 12.0 s on 45 asks) and the failed runs are in [OPERATIONS.md](docs/OPERATIONS.md#load-tests).
+At most 2 replicas, 0.51 vCPU and 0.53 GiB over the run. The earlier runs, the v1.0.0 one among them (2026-11-03, run
+41661582947: p95 12.8 s on 96 asks), and the failed ones are in [OPERATIONS.md](docs/OPERATIONS.md#load-tests).
+
+![The locust job of load-test.yml run 42687323423 in GitHub Actions: the real-model step, ten minutes at three users through the warm stable revision, with 100 asks and 100 deletes and no failure, and Locust's response-time percentiles](docs/images/load-test-run.png)
 
 **SLOs** (production from v1.0.0): availability ≥ 99.7 %, p95 < 13 s, 5xx < 1 %, ≤ 0.05 € per question all-in; RTO 4 h (drill:
-12 min 17 s) and RPO 15 min. First production reading, 2026-11-04 over 30 days, test traffic: availability 100 % of 94 `/api`
-requests, 5xx 0, p95 of the ask route 16.9 s on 9 asks (the slowest of the nine, the first question of 2026-11-03, after an
-`AnalystRetried`; 8 of 9 under 15 s), 0.0049 € a turn as the app measures it. Nine asks are too few for a p95; the SLA-02
-evidence stays the load test.
+12 min 17 s) and RPO 15 min. Measured in production on 2026-11-10 over 30 days, all of it test traffic: availability 100 % of 262
+`/api` requests and no 5xx, both met; **p95 of the ask route 14.1 s (14,145 ms) on 51 asks, above the 13 s SLO**, while the 15 s
+SLA is met (49 of 51 asks under 15 s); cost 0.005 € a turn in tokens and search as the app measures it (median of 48), about
+0.037 € all-in at 350 questions a month (see [Cost](#cost)), within the 0.05 € SLO. Fifty-one asks are few for a p95; the
+SLA-02 gate stays the load test.
 
-**DORA, 2026-11-01 to 2026-11-03:** staging: 15 `deploy.yml` runs with a result, 13 successful; lead time 5 to 8 minutes from merge
-to staging; change failure rate 2 of 15; time to restore 34 and 17 minutes. Production: 2 releases, v1.0.0 (8 minutes from tag to
-production, 2 h 46 min from merge, the load test included) and v1.0.1 (18 minutes from tag, 33 minutes from merge); change
-failure rate 0 of 2; no incident, and a rehearsed time to restore of 47 s by revision.
+**DORA, 2026-11-01 to 2026-11-09:** staging: 16 `deploy.yml` runs with a result, 14 successful; lead time 5 to 8 minutes from merge
+to staging; change failure rate 2 of 16; time to restore 34 and 17 minutes. Production: 3 releases, v1.0.0 (8 minutes from tag to
+production, 2 h 46 min from merge, the load test included), v1.0.1 (18 minutes from tag, 33 minutes from merge) and v1.0.2
+(25 minutes from tag on 2026-11-09, approval and canary included; merged on 2026-11-04 and held for the demo recording and its
+load test); change failure rate 0 of 3; no incident, and a rehearsed time to restore of 47 s by revision.
 
 ## Cost
 
 | | At rest | In use |
 |---|---|---|
 | Staging | ≈ 0.1 € a month | ≈ 1 € a month (≤ 2.3) |
-| Production | ≈ 11.2 € a month (the warm replica and two log alerts) | ≈ 13 to 15 € a month at 350 questions |
+| Production | ≈ 11.2 € a month (the warm replica and the availability and p95 log alerts; the 5xx metric alert is not priced) | ≈ 13 to 15 € a month at 350 questions |
 
-A question costs a median of 0.0052 € in tokens and search (measured in staging, 2026-11-01), about 0.037 € all-in in production at
-350 questions a month, against a 0.05 € SLO. The shared base (search 64.88 € and registry 4.46 € a month) is not counted per
-product. Details in [docs/cost.md](docs/cost.md).
+A question costs a median of 0.0052 € in tokens and search (measured in staging on 5 answers, 2026-11-01) and 0.005 € in
+production as the app measures it (48 turns, 30 days to 2026-11-10), about 0.037 € all-in in production at 350 questions a month,
+against a 0.05 € SLO. The shared platform (search 64.88 € and registry 4.46 € a month) is not counted per product. Details in [docs/cost.md](docs/cost.md).
 
 ## Well-Architected design
 
@@ -200,8 +227,8 @@ product. Details in [docs/cost.md](docs/cost.md).
 | Reliability | clear 503s with `Retry-After` for a throttled model or a dependency down, SDK retries and timeouts, probes, a deadline on *Analyst*, continuous backup with a measured restore | one search replica, no zones, one region (ADR-007, ADR-011) |
 | Security | managed identities, least privilege, local auth off, Easy Auth with an app role, one secret in Key Vault, segmentation by group, identity and data | no private endpoints, no Defender plans (ADR-011) |
 | Cost optimization | cost per question measured, tags, replica caps, TPM caps, `max_tokens`, budgets, staging at zero, log caps | production keeps one warm replica (ADR-008) |
-| Operational excellence | Bicep with `what-if`, build once and promote the digest, canary with rollback, incident procedure, DORA | none |
-| Performance efficiency | p95 targets, Locust in staging before promotion, platform features first | cross-region calls from France Central (ADR-014) |
+| Operational excellence | Bicep with `what-if`, build once and promote the digest, canary with rollback, incident procedure, DORA | no per-revision p95 during the canary yet; staging alerts declared but disabled |
+| Performance efficiency | p95 targets, Locust in staging before promotion, managed platform features first (Easy Auth, Container Apps scaling and metrics) | cross-region calls from France Central (ADR-014) |
 
 ## Deploy
 
@@ -212,7 +239,7 @@ production:
 gh release create vX.Y.Z --title vX.Y.Z --notes-file <the CHANGELOG section>
 ```
 
-**Prerequisites:** an Azure subscription with the shared base (Foundry project with `gpt-5-mini` and `text-embedding-3-small`, AI
+**Prerequisites:** an Azure subscription with the shared platform (Foundry project with `gpt-5-mini` and `text-embedding-3-small`, AI
 Search, Container Registry, Log Analytics), and the two resource groups.
 
 ### Bootstrap
@@ -233,13 +260,12 @@ Secrets, so that public run logs never print them:
 - per environment (`staging`, `production`): `AZURE_CLIENT_ID`, `AUTH_CLIENT_ID` and `AUTH_CLIENT_SECRET`. The sign-in apps' client
   secrets expire in November 2027; [docs/OPERATIONS.md](docs/OPERATIONS.md) gives the dates and the rotation steps.
 
-Variables: `CHAT_MODEL`, `EMBEDDING_MODEL`, `EVAL_SEARCH_INDEX`, `DEPLOY_ENABLED`, and `SHARED_RESOURCE_GROUP`, which the bootstrap
-sets and no workflow reads.
+Variables: `CHAT_MODEL`, `EMBEDDING_MODEL`, `EVAL_SEARCH_INDEX` and `DEPLOY_ENABLED`.
 
 ### Identities
 
-The CI principals hold Contributor and a conditioned RBAC Administrator on their own resource group, plus the shared-base roles
-their workflows need. The runtime identities hold AcrPull, Foundry User and Search Index Data Reader on the shared base; the Bicep
+The CI principals hold Contributor and a conditioned RBAC Administrator on their own resource group, plus the shared-platform roles
+their workflows need. The runtime identities hold AcrPull, Foundry User and Search Index Data Reader on the shared platform; the Bicep
 grants their Cosmos DB, Key Vault and Application Insights roles. [docs/THREAT_MODEL.md](docs/THREAT_MODEL.md) covers the trust
 boundaries and the RBAC Administrator condition.
 
@@ -249,7 +275,8 @@ boundaries and the RBAC Administrator condition.
 - [docs/OPERATIONS.md](docs/OPERATIONS.md): environments, promotion, rollback, alerts, restore, incidents, load tests and DORA.
 - [docs/THREAT_MODEL.md](docs/THREAT_MODEL.md), [docs/RESPONSIBLE_AI.md](docs/RESPONSIBLE_AI.md),
   [docs/evaluation.md](docs/evaluation.md), [docs/architecture.md](docs/architecture.md), [docs/cost.md](docs/cost.md).
-- [CHANGELOG.md](CHANGELOG.md) and the [releases](https://github.com/Rodrigo-GomezdelMoral/product-legal-juriscope/releases).
+- [CHANGELOG.md](CHANGELOG.md), the latest release, [v1.0.2](https://github.com/Rodrigo-GomezdelMoral/product-legal-juriscope/releases/tag/v1.0.2),
+  and all the [releases](https://github.com/Rodrigo-GomezdelMoral/product-legal-juriscope/releases).
 - [ADRs](docs/adr/): 001 to 017.
 
 ## Author

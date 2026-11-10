@@ -182,6 +182,11 @@ run so far; since 1.0.1 it ends explicitly three minutes after the real-model st
 | 2026-11-03 | soak, model double | 5 | 0.45 | 0.99 s | 1.4 s | 1.8 s | 0 of 270 | ≤ 2 |
 | 2026-11-03 | stress, model double | 5 to 100 | 3.26 | 2.7 s | 13 s | 20 s | 11 of 3,908 | 2 (the maximum) |
 | 2026-11-03 | **real model, warm, release commit (v1.0.0)** | 3 | 0.16 | 8.6 s | **12.8 s (exact)** | 22 s | 0 of 96 | 2 |
+| 2026-11-09 | normal, model double | 5 | 0.46 | 1.0 s | 5.5 s | 5.5 s | 0 of 82 | ≤ 2 |
+| 2026-11-09 | peak, model double | 20 | 1.67 | 1.3 s | 7.6 s | 7.9 s | 0 of 200 | ≤ 2 |
+| 2026-11-09 | soak, model double | 5 | 0.45 | 0.97 s | 1.4 s | 2.0 s | 0 of 270 | ≤ 2 |
+| 2026-11-09 | stress, model double | 5 to 100 | 3.34 | 2.7 s | 13 s | 23 s | 0 of 3,998 | ≤ 2 |
+| 2026-11-09 | **real model, warm, release commit (v1.0.2)** | 3 | 0.17 | 7.6 s | **11.3 s (exact)** | 15 s | 0 of 100 | ≤ 2 |
 
 Rates and percentiles are for the ask route at the client (Locust 2.47.0, run 41331036489, digest of `c074a7e`). **The run failed
 the SLA-02 gate** as it stood then (p95 < 8 s): the stable revision had idled at zero replicas through the 35 minutes of the
@@ -216,7 +221,15 @@ in an in-stream `error` event, above the 1 % rule for 91 asks; its cause was nev
 same commit and digest (registry tag `20261103-main-b8dd5e1`, stable revision `--r12-1`), the digest v1.0.0 promoted: exact p95
 12,784 ms on 96 asks (recomputed from `real_ask_ms.csv`), median 8.6 s, maximum 22.1 s, 0 failed; normal, peak and soak without
 errors; the stress ramp's 11 failed asks (0.28 %) were the `SearchUnavailableError` streams of *Alerts*; 2 replicas, 0.51 vCPU
-and 0.52 GiB at most. The last seven rows of the table are these two runs, and run 41661582947 is the SLA-02 evidence of v1.0.0.
+and 0.52 GiB at most. The six rows that end with *release commit (v1.0.0)* are these two runs, and run 41661582947 is the SLA-02
+evidence of v1.0.0.
+
+**Run 42687323423 passed on the v1.0.2 commit** (2026-11-09, 19:51 to 20:41 UTC, `dff9470`, the digest `efdc0a1f3028` that v1.0.2
+promoted, the same `app/` code as v1.0.1): exact p95 11,337 ms on 100 real-model asks (from `real_ask_ms.csv`), median 7.6 s,
+maximum 14.7 s, 0 failed; normal, peak, soak and stress without a failed ask, the stress ramp reaching 100 users; 2 replicas,
+0.51 vCPU and 0.53 GiB at most. The last five rows of the table are this run, the SLA-02 evidence of v1.0.2. In production, over
+30 days to 2026-11-10 and on test traffic only, the ask route's p95 was 14.1 s on 51 asks, above the 13 s SLO, with 49 of the 51
+under the 15 s of SLA-02.
 
 **Known limitation: staging telemetry during load tests.** The staging Application Insights daily cap is 0.3 GB, reset at
 00:00 UTC, and is kept. The model-double scenarios of the morning run filled it at about 10:50 UTC on 2026-11-03, so run
@@ -242,8 +255,8 @@ Read from the Actions runs with `gh run list --workflow deploy.yml` and `--workf
 | Window | Deployment frequency | Lead time | Change failure rate | Time to restore |
 |---|---|---|---|---|
 | Staging, 2026-11-01 | 3 `deploy.yml` runs with a result, 2 successful (one commit, `c074a7e`) | PR #10: 5 min from merge (12:06) to staging (12:11), 12 min from opening | 1 of 3 (11:37, the Layout skill rejected in Spain Central) | 34 min, restored by PR #10 |
-| Staging, 2026-11-01 to 2026-11-03 | 15 `deploy.yml` runs with a result, 13 successful (2 of them the rollback drill's dispatches, 21:41 and 21:46 on 11-03) | 5 to 8 min from merge to staging (PRs #10 to #19 and #24) | 2 of 15 (11-01 11:37, the Layout skill; 11-02 19:42, the runner's managed identity endpoint) | 34 min and 17 min |
-| Production, 2026-11-03 | 2 releases (v1.0.0 and v1.0.1, `release.yml` succeeded, approval recorded) and 2 rollback dispatches rehearsed (runs 41725584657 and 41728213703, both successful) | v1.0.0: 8 min from tag (16:28) to production (16:36), 2 h 46 min from merge (13:49), the load test included. v1.0.1: 18 min from tag (19:45) to production (20:03), 33 min from merge (19:30), the approval and the canary included | 0 of 2 releases | no incident; rehearsed: 47 s by revision, 17 min 16 s by a planned redeploy |
+| Staging, 2026-11-01 to 2026-11-09 | 16 `deploy.yml` runs with a result, 14 successful (2 of them the rollback drill's dispatches, 21:41 and 21:46 on 11-03; the last, PR #25's merge on 11-04) | 5 to 8 min from merge to staging (PRs #10 to #19, #24 and #25) | 2 of 16 (11-01 11:37, the Layout skill; 11-02 19:42, the runner's managed identity endpoint) | 34 min and 17 min |
+| Production, 2026-11-03 to 2026-11-09 | 3 releases (v1.0.0 and v1.0.1 on 11-03, v1.0.2 on 11-09; `release.yml` succeeded, approval recorded) and 2 rollback dispatches rehearsed (runs 41725584657 and 41728213703, both successful) | v1.0.0: 8 min from tag (16:28) to production (16:36), 2 h 46 min from merge (13:49), the load test included. v1.0.1: 18 min from tag (19:45) to production (20:03), 33 min from merge (19:30), the approval and the canary included. v1.0.2: 25 min from tag (21:19) to production (21:44, run 42701383536), the approval and the canary included; merged on 11-04 at 14:46 (PR #25) and held for the demo recording and its load test | 0 of 3 releases | no incident; rehearsed: 47 s by revision, 17 min 16 s by a planned redeploy |
 
 ## Switching on and off
 
