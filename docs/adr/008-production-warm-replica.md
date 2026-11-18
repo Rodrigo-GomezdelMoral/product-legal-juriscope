@@ -41,4 +41,4 @@ SLA-02, as production's warm replica does.
     0.22 vCPU at 20 users, 0.51 vCPU (saturated, probe timeouts, no failed request) at 100 users. 0.25 vCPU / 0.5 GiB would sit
     at the CPU limit at the peak scenario and run out of memory under stress, so the saving (about 7.3 €) is not taken.
   - The workbook shows the figure month by month.
-- Prompt 06 sets `minReplicas: 0` to switch production off without deleting it.
+- Setting `minReplicas: 0` switches production off without deleting it.

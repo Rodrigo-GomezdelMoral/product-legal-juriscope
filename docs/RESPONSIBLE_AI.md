@@ -1,9 +1,9 @@
 # Responsible AI impact assessment
 
-Juriscope's impact assessment follows the sections of the
-[Microsoft Responsible AI Impact Assessment Template](https://msblogs.thesourcemediaassets.com/sites/5/2022/06/Microsoft-RAI-Impact-Assessment-Template.pdf)
-(June 2022) and the responsible AI guidance of the
-[Well-Architected AI workload guide](https://learn.microsoft.com/azure/well-architected/ai/responsible-ai). Measured figures carry
+Juriscope's impact assessment follows the sections of the Responsible AI Impact Assessment Template and the goals of the
+[Microsoft Responsible AI Standard](https://www.microsoft.com/ai/principles-and-approach), together with the responsible AI
+guidance of the [Azure Well-Architected Framework](https://learn.microsoft.com/azure/well-architected/) for
+[AI workloads](https://learn.microsoft.com/azure/well-architected/ai/responsible-ai). Measured figures carry
 their date and come from [evaluation.md](evaluation.md). **Status, 2026-11-09 (release 1.0.2):** everything below runs in
 staging since 2026-11-01 and in production since release 1.0.0 (2026-11-03). Production evidence so far is the author's sign-in
 check of 2026-11-03 (three answered questions, both versions side by side, the user's name and role shown); the walk-through of
@@ -45,10 +45,21 @@ recorded on release 1.0.2 on 2026-11-09, the same application code ([OPERATIONS.
   - *Human oversight (A5):* every answer is reviewed by a lawyer, who drafts and signs the work product. No action with side effects
     exists, so there is no approval step inside the product.
   - *Intelligibility (T1):* every claim names its articles, and every article opens the official BOE text.
-  - *Communication to stakeholders (T2) and disclosure of AI interaction (T3):* the interface says the answers are generated and are
-    not legal advice, and shows the BOE reuse notice (phase 5).
+  - *Communication to stakeholders (T2) and disclosure of AI interaction (T3):* under every answer the interface says "For the firm's
+    lawyers. Not legal advice." and shows the BOE reuse notice with the text's update date. A dedicated label that a language model drafts the claims is a planned addition.
   - *Quality of service (F1):* the product answers in Spanish and English and is measured in both. Co-official languages are out of
     scope.
+  - *Reliability and safety guidance (RS1):* each predictable failure of section 3 has a metric and an accepted threshold in the
+    evaluation gate ([evaluation.md](evaluation.md)), and the unsupported uses and known limitations are listed in section 3.
+  - *Failures and remediations (RS2):* the predictable failures and the misuse cases of section 3 each have a mitigation and its
+    evidence in section 5. A throttled model or a dependency that is down gets a clear 503, and a bad release is rolled back
+    ([OPERATIONS.md](OPERATIONS.md)).
+  - *Ongoing monitoring, feedback and evaluation (RS3):* the evaluation gate runs on every change to prompts, agents, retrieval or
+    the corpus (REQ-05). Production has alerts on server errors, availability and latency, the KPI workbook and the feedback on each
+    answer (REQ-09).
+  - *Privacy Standard compliance (PS1) and Security Policy compliance (PS2):* the Standard refers these two goals to Microsoft's
+    internal policies, so Juriscope applies its own controls: the classification, residency, 90-day retention and deletion of
+    questions and the absence of their text in telemetry (section 4), and the STRIDE pass in [THREAT_MODEL.md](THREAT_MODEL.md).
 - **Readiness and role of humans:** proven technology (retrieval plus a pinned model) on a narrow, well-structured corpus. The task is
   of moderate complexity. A professional reviews every output, in a controlled environment of 18 named users.
 

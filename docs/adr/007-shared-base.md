@@ -41,4 +41,4 @@ a second replica (about 64.88 € a month) is rejected against a 25 € budget.
 - One Spain Central search service holds at most 15 indexes for everything on the base; Juriscope uses three.
 - A shared model deployment can be saturated by other callers (the 100K TPM is shared). The API turns that into a 503 with
   `Retry-After`, and the health model's *Model* flow shows it.
-- Deleting a product never touches the shared base; prompt 06 removes only the environment resource groups.
+- Removing Juriscope never touches the shared base: only the environment resource groups are removed.

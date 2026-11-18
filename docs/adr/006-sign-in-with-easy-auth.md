@@ -60,4 +60,4 @@ Option 1.
   says so.
 - **Rotation** (`OPERATIONS.md`): add a new client secret, update `AUTH_CLIENT_SECRET`, redeploy (Bicep writes the vault secret and
   the container app reads the latest version), then delete the old secret.
-- Purge protection stays off so that prompt 06 can remove the vault; soft delete keeps it for seven days.
+- Purge protection stays off so that the vault can be removed; soft delete keeps it for seven days.
