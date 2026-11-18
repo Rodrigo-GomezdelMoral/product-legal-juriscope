@@ -10,7 +10,7 @@ answer. A firm's lawyers spend about 80 minutes on each research question, and t
 in force then. Juriscope answers in about 8 seconds (median 7.6 s; 95 % within 11.3 s on 100 answers in the load test of release
 v1.0.2, 2026-11-09), and the lawyer's estimated time per question falls from 50 to 115 minutes to 25 to 50.
 
-<p align="center"><a href="https://rodrigogomezdelmoral.es/en/projects/product-legal-juriscope#video"><img src="docs/images/author/demo-video.png" alt="Watch the demo video" height="48"></a></p>
+<p align="center"><a href="https://rodrigogomezdelmoral.es/en/projects/product-legal-juriscope#video"><img src="docs/images/author/demo-video.png" alt="Watch the AI solution video" height="48"></a></p>
 
 **Built to standard.** This AI solution is designed, built, validated and operated in alignment with the **Microsoft
 Responsible AI Standard** (Fairness, Reliability and Safety, Privacy and Security, Inclusiveness, Transparency,
