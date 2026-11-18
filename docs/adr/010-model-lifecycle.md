@@ -47,7 +47,7 @@ behaviour silently.
 
 - **Latency against SLA-02, measured 2026-10-31:** 19 live answers took a median of 10.7 s end to end (7.4 to 15.6 s), and only
   4 of 19 finished under 8 s. Steps: *Analyst* median 2.9 s, `retrieve` 0.8 s, *Counsel* 6.0 s, `verify` 0.02 s.
-- **`reasoning.effort: "minimal"` is accepted by this deployment,** contrary to the build prompt's note, and the phase 3 gate
+- **`reasoning.effort: "minimal"` is accepted by this deployment,** contrary to the specification's note, and the phase 3 gate
   compared it with `low` on the full suite on 2026-10-31 (prompt v2, 110 cases each). `minimal` cut the median time per
   question from 7.6 s to 4.6 s and p95 from 12.4 s to 8.2 s. But correct refusal fell from 1.00 to 0.80, groundedness from
   0.964 to 0.878, and citation precision from 0.695 to 0.603, and the canary leaked in 2 of 15 adversarial cases against 1.

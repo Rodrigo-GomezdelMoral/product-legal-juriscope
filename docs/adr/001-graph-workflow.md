@@ -23,7 +23,7 @@ citations are deterministic, and the guide's rule applies to them: if it can be 
 3. **A graph workflow** (`WorkflowBuilder`, guide 3.2): `analyze` and `draft` as `AgentExecutor`s (3.7), `retrieve`, `verify`
    and `refuse` as function executors (3.3), conditional edges for the branches (3.4), built fresh per request (3.6).
 
-For the history, the build prompt asked for `workflow.as_agent(name="juriscope", context_providers=[history])` (guide 6.4), with a
+For the history, the specification asked for `workflow.as_agent(name="juriscope", context_providers=[history])` (guide 6.4), with a
 fallback if per-step events did not surface through it.
 
 ## Decision
@@ -41,7 +41,7 @@ Option 3, in `app/workflow.py`:
   `analyst_v4.md`, code removes every passage *Analyst* lists in `left_out` from the restatement and drops a claim that repeats
   one ([ADR-005](005-structured-output-and-verification.md)).
 - **The workflow is run with `workflow.run(..., stream=True)`, not through `as_agent`,** and `Juriscope.ask` loads and saves the
-  history itself with the provider's `get_messages` and `save_messages`. This is the fallback the build prompt allowed, chosen on
+  history itself with the provider's `get_messages` and `save_messages`. This is the fallback the specification allowed, chosen on
   evidence from the installed `agent-framework-core` 1.23.0:
   - `WorkflowAgent` forwards only `output`, `intermediate`, `data` and `request_info` events (`AGENT_FORWARDED_EVENT_TYPES`).
     Custom events (guide 3.5) and `executor_invoked` stay inside the workflow.

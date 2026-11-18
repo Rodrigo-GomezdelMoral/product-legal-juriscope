@@ -12,7 +12,7 @@ data in the EU. The shared base offers `gpt-5-mini` and `text-embedding-3-small`
 
 1. **Global Standard** (the shared deployments): data at rest stays in the resource's geography, but a request may be processed
    in any Azure region.
-2. **Data Zone EU Standard:** processing stays inside the EU data zone, at about 10 % more per token (build prompt figures,
+2. **Data Zone EU Standard:** processing stays inside the EU data zone, at about 10 % more per token (the specification's figures,
    2026-10-30), and it needs new deployments and quota in the shared base, which this repository does not own.
 3. **Regional Standard** in `swedencentral`: processing in one region, with the narrowest model availability.
 

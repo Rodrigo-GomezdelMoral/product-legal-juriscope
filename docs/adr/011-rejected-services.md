@@ -19,4 +19,4 @@ operations without serving a requirement in `docs/PRODUCT.md`.
 | `agent-framework-hosting` | alpha | plain FastAPI on Container Apps |
 | Agents or workflows defined in Foundry | the workflow branches in code and must pass the gate as code | `app/workflow.py`, self-hosted (guide Part 8.1) |
 | Development environments in Azure, separate subscriptions | local development uses the emulator and the shared models; one subscription with a resource group per environment segments access | `rg-juriscope-stg-swc`, `rg-juriscope-prod-swc`, separate identities |
-| Certifications (ISO, ENS) | out of scope for a portfolio product | the threat model and the RAI assessment |
+| Certifications (ISO, ENS) | out of scope for a single-author project | the threat model and the RAI assessment |

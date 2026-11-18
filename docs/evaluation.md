@@ -43,7 +43,7 @@ the cases it applies to, and its value is the share of those cases where the che
 
 - **Item-level, conservative definitions.** `recall_at_5` counts a case only when *all* its gold articles are in the top five, and
   `citation_precision` only when *every* citation is acceptable. Both are stricter than the mean per article.
-- **`errors` is the one addition** to the build prompt's thresholds. A case that raises is left out of the metrics, so without it a
+- **`errors` is the one addition** to the specification's thresholds. A case that raises is left out of the metrics, so without it a
   run where everything failed would pass.
 - **The judge** runs as the caller (`DefaultAzureCredential`), with `is_reasoning_model=True` (no temperature, `max_completion_tokens`)
   and the GA API version `2024-10-21`. Measured on 2026-10-31: the deployment's token counter deducts only the prompt, not the

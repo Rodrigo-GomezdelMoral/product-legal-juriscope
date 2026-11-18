@@ -267,7 +267,7 @@ Read from the Actions runs with `gh run list --workflow deploy.yml` and `--workf
 - **After every deploy that recreates or moves an app,** run `SKIP_DEPLOY=1 07-staging.sh` again: the app's address, and so the
   sign-in callback, changes.
 - Production's warm replica and its two log alert rules are the only standing cost (about 11.2 € a month, `docs/cost.md`).
-- Prompt 06 sets production `minReplicas` to 0 and disables the alert rules without deleting anything.
+- To pause production, set `minReplicas` to 0 and disable the alert rules, without deleting anything.
 
 ## Cost per environment
 

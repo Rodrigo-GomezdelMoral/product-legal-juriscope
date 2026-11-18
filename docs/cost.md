@@ -12,10 +12,10 @@ The apps run in France Central since 2026-11-02 (ADR-014). The API rounds EUR pr
 | Meter | France Central (2026-11-02) | Sweden Central (2026-11-02) | Spain Central (2026-11-01) |
 |---|---|---|---|
 | vCPU active, € per second | 0.000022 | 0.000022 | 0.000030 |
-| vCPU and memory idle, € per second (vCPU or GiB) | 0.000003 | 0.000003 (0.00000264 in the build prompt's estimate) | 0.000004 |
+| vCPU and memory idle, € per second (vCPU or GiB) | 0.000003 | 0.000003 (0.00000264 in the specification's estimate) | 0.000004 |
 
 France Central matches Sweden Central at the API's precision; Spain Central is about **42 % dearer**. The idle rate used below is
-the build prompt's 0.00000264 € per vCPU-second or GiB-second.
+the specification's 0.00000264 € per vCPU-second or GiB-second.
 
 ## Per environment, per month
 
@@ -58,7 +58,7 @@ from the first release.
 - `rg-juriscope-stg-swc`, tag `project=product-legal-juriscope`: 0.40 € month to date (2026-11-01), of which Cosmos DB 0.399 €,
   Key Vault, Storage and bandwidth under 0.001 € each. No Container Apps charge appears yet. The data lags up to a day.
 - The shared base, 2026-11-01: AI Search 5.68 €, Foundry models 0.85 €, Foundry tools 0.70 €, registry 0.15 €. It is not split by
-  product; the search figure includes that day's semantic queries from every product, this load test's among them.
+  workload; the search figure includes that day's semantic queries from every workload, this load test's among them.
 - Production: nothing until the first release (phase 8).
 
 ## Shared base
@@ -76,5 +76,5 @@ Insights and the search service, and the image pull) is a few KB per question. A
 
 - **What bills when stopped:** production's warm replica (about 10.3 €) and its two enabled log alert rules (0.88 €).
 - **Staging** scales to zero by itself, and its alert rules are disabled.
-- **Production to zero without deleting anything** (prompt 06): `minReplicas: 0` and the alert rules disabled.
+- **Production to zero without deleting anything:** `minReplicas: 0` and the alert rules disabled.
 - **No spending limit:** the subscription is pay-as-you-go, so budgets only alert. `OPERATIONS.md` says who reacts and how.
