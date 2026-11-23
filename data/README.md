@@ -57,9 +57,9 @@ Reused under Ley 37/2007, de 16 de noviembre, sobre reutilización de la informa
 |---|---|---|
 | Blocks in the text | 985 | |
 | `precepto` blocks | 784 | 750 articles, 23 dispositions, 5 grouped repealed blocks and 6 headings |
-| Versions in the whole text | 1,858 | every block type, as in the build prompt |
+| Versions in the whole text | 1,858 | every block type, as in the specification |
 | Articles | 750 | |
-| Articles in force | 723 | 750 minus the 27 repealed, as in the build prompt. 23 of them read only "(Suprimido)", "(Derogado)" or "(Sin contenido)", because a reform emptied them without removing the block, so 700 carry operative text |
+| Articles in force | 723 | 750 minus the 27 repealed, as in the specification. 23 of them read only "(Suprimido)", "(Derogado)" or "(Sin contenido)", because a reform emptied them without removing the block, so 700 carry operative text |
 | Dispositions | 23 | additional, transitional, repealing and final provisions |
 | Provisions stored | 773 | articles and dispositions |
 | Versions stored | 1,592 | 1,597 in the stored blocks, less the 5 same-day duplicates |
